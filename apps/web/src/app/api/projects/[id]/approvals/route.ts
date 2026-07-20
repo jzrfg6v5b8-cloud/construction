@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { getDb } from "@/lib/db/client";
-import { getUserBySessionToken, SESSION_COOKIE } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { accessErrorResponse, requireOwnedProject } from "@/lib/auth/project-access";
 
 export const runtime = "nodejs";
@@ -24,8 +22,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   try {
   const { user } = await requireOwnedProject(id);
-  const jar = await cookies();
-  const user = getUserBySessionToken(jar.get(SESSION_COOKIE)?.value);
   const body = await request.json().catch(() => ({})) as {
     role?: string;
     decision?: "approved" | "rejected";

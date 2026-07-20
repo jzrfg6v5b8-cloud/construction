@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "prebuild": "npm run build --prefix ../../packages/space-schema && npm run build --prefix ../../packages/processing-queue",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",

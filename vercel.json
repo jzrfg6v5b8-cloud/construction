@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build -w @sharkflows/space-schema && npm run build -w @sharkflows/processing-queue && npm run build -w @sharkflows/web"
+}
