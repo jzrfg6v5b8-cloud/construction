@@ -70,7 +70,14 @@ export function listProjects(userId?: string | null): ProjectRecord[] {
       )
       .all(userId) as ProjectRecord[];
   }
-  return [];
+  return db
+    .prepare(
+      `SELECT p.*,
+        (SELECT COUNT(*) FROM assets a WHERE a.project_id = p.id) AS asset_count
+       FROM projects p
+       ORDER BY p.updated_at DESC`,
+    )
+    .all() as ProjectRecord[];
 }
 
 export function updateProject(

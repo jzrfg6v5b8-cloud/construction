@@ -11,9 +11,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run dev -- --port 3100",
+    command: "NEXT_DIST_DIR=.next-playwright npm run dev -- --port 3100",
     url: "http://127.0.0.1:3100",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],

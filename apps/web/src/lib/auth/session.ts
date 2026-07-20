@@ -28,6 +28,10 @@ function sqlite() {
   return getDb().sqlite;
 }
 
+function isServerlessRuntime() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
 export function googleAuthConfigured() {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
@@ -70,7 +74,7 @@ function decodeSession(token: string): AuthUser | null {
 }
 
 function persistSessionBestEffort(userId: string, token: string, expiresAt: Date) {
-  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) return;
+  if (isServerlessRuntime()) return;
   try {
     const id = `ses_${randomBytes(12).toString("hex")}`;
     sqlite()
@@ -128,7 +132,20 @@ export function getUserBySessionToken(token: string | undefined | null): AuthUse
   if (!token) return null;
 
   const signed = decodeSession(token);
-  if (signed) return signed;
+  if (signed) {
+    // Local/durable installs persist every signed token, so logout can revoke it.
+    // Stateless serverless deployments rely on clearing the signed cookie because
+    // their bundled SQLite filesystem is read-only and cannot store revocations.
+    if (isServerlessRuntime()) return signed;
+    try {
+      const active = sqlite()
+        .prepare(`SELECT 1 FROM sessions WHERE session_token = ? AND expires_at > ?`)
+        .get(hashToken(token), nowIso());
+      return active ? signed : null;
+    } catch {
+      return null;
+    }
+  }
 
   // Legacy DB-backed tokens (local SQLite installs before signed cookies).
   try {

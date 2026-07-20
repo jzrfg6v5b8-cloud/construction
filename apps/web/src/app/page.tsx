@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Box, CheckCircle2, FileSearch, Images, Layers3, Ruler, ShieldCheck, ShoppingCart, Sparkles } from "lucide-react";
+import { ArrowRight, Box, CheckCircle2, Images, Layers3, Ruler, ShieldCheck, ShoppingCart, Sparkles } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLocale } from "@/lib/i18n/runtime";
 
@@ -86,8 +86,8 @@ export default function Home() {
               </Link>
             )})}
           </div>
-          <div className="mt-5 flex items-center gap-2 rounded-xl border border-[#ead7ab] bg-[#fff8e8] px-4 py-3 text-sm text-[#72551c]">
-            <FileSearch size={17}/> {home.notice}
+          <div className="mt-5 flex items-center gap-2 rounded-xl border border-[#c9ddd2] bg-[#eef7f1] px-4 py-3 text-sm text-[#245f4f]">
+            <ShieldCheck size={17}/> {home.notice}
           </div>
         </div>
       </section>

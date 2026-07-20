@@ -10,6 +10,8 @@ import { getFloorPlan, getSketchUpResult, listRenderArtifacts } from "@/lib/db/r
 import { PROPOSAL_SCENE_IDS, syncRenderRowToMemory } from "@/lib/rendering/ingest-scene-png";
 import { renderStore } from "@/lib/rendering/render-store";
 import type { SceneScreenshotManifest } from "@/lib/rendering";
+import { getLatestQuote, listBom } from "@/lib/commerce/repository";
+import { accessErrorResponse, requireOwnedProject } from "@/lib/auth/project-access";
 
 export const runtime = "nodejs";
 
@@ -71,7 +73,7 @@ function hydrateRenders(projectId: string) {
   return renderStore.list(projectId).filter((item) => item.status === "ready" && item.imageUri);
 }
 
-function demoApprovalInput(projectId: string, forceFinal: boolean) {
+function approvalInput(projectId: string) {
   const approvals = listApprovals(projectId).map((row) => ({
     id: row.id,
     role: row.role,
@@ -79,20 +81,10 @@ function demoApprovalInput(projectId: string, forceFinal: boolean) {
     actorId: row.actor_id,
     at: row.created_at,
   }));
-  if (forceFinal && approvals.length === 0) {
-    approvals.push({
-      id: "apr_demo_force",
-      role: "designer",
-      decision: "approved",
-      actorId: "demo-approver",
-      at: new Date().toISOString(),
-    });
-  }
-
   const floor = getFloorPlan(projectId);
   const sketch = getSketchUpResult(projectId);
-  const dimensionsVerified = forceFinal || Boolean(floor?.dimensions_verified);
-  const sceneVersion = floor?.geometry_version ?? sketch?.geometryVersion ?? "demo-v3";
+  const dimensionsVerified = Boolean(floor?.dimensions_verified);
+  const sceneVersion = floor?.geometry_version ?? sketch?.geometryVersion ?? "unversioned";
 
   const renderArtifacts = hydrateRenders(projectId);
   const allScenesReady = REQUIRED_SCENES.every((sceneId) =>
@@ -119,31 +111,17 @@ function demoApprovalInput(projectId: string, forceFinal: boolean) {
             };
           }),
         }
-      : forceFinal
-        ? {
-            manifestId: `rman_${projectId}_force`,
-            projectId,
-            sceneVersion,
-            createdAt: new Date().toISOString(),
-            screenshots: REQUIRED_SCENES.map((sceneId) => ({
-              renderId: `force_${sceneId}`,
-              sceneId,
-              sceneVersion,
-              imageUri: `memory://${sceneId}`,
-              width: 1280,
-              height: 720,
-              sha256: "0".repeat(64),
-              capturedAt: new Date().toISOString(),
-            })),
-          }
-        : null;
+      : null;
 
+  const storedBom = listBom(projectId);
+  const latestQuote = getLatestQuote(projectId);
+  const skuCounts = sketch ? Object.fromEntries((sketch.componentStats as Array<{sku:string;quantity:number}>).map((row)=>[row.sku,row.quantity])) : {};
   const sketchUp =
-    sketch?.status === "COMPLETED" || forceFinal
+    sketch?.status === "COMPLETED"
       ? {
           status: "COMPLETED" as const,
-          geometryVersion: sketch?.geometryVersion ?? sceneVersion,
-          skuCounts: { "SF-SOFA-001": 1, "SF-LAMP-009": 2 },
+          geometryVersion: sketch.geometryVersion,
+          skuCounts,
         }
       : null;
 
@@ -152,18 +130,9 @@ function demoApprovalInput(projectId: string, forceFinal: boolean) {
     sceneVersion,
     dimensionsVerified,
     unverifiedDimensionIds: dimensionsVerified ? [] : ["dim_wall_a"],
-    coverage: [
-      { assetId: "ast_material_07", required: true, status: forceFinal || dimensionsVerified ? ("covered" as const) : ("missing" as const) },
-      { assetId: "ast_floorplan_01", required: true, status: "covered" as const },
-    ],
-    bom: [
-      { sku: "SF-SOFA-001", quantity: 1, unitPrice: 12800, name: "三人沙发", materialCode: "MAT-FAB-01" },
-      { sku: "SF-LAMP-009", quantity: 2, unitPrice: forceFinal || sketchUp ? 680 : undefined, name: "落地灯" },
-    ],
-    quote: [
-      { sku: "SF-SOFA-001", quantity: 1, unitPrice: 12800 },
-      { sku: "SF-LAMP-009", quantity: 2, unitPrice: 680 },
-    ],
+    coverage: [],
+    bom: storedBom.map((row)=>({sku:String(row.sku),quantity:Number(row.quantity),unitPrice:Number(row.unit_price),name:String(row.name),materialCode:row.material_code?String(row.material_code):undefined})),
+    quote: latestQuote ? storedBom.map((row)=>({sku:String(row.sku),quantity:Number(row.quantity),unitPrice:Number(row.unit_price)})) : [],
     sketchUp,
     renderManifest,
     requiredSceneIds: [...REQUIRED_SCENES],
@@ -175,10 +144,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const { id } = await context.params;
   const url = new URL(request.url);
   const requestedFinal = url.searchParams.get("status") === "FINAL";
-  const forceDemoFinal = url.searchParams.get("forceDemoFinal") === "1" && process.env.NODE_ENV !== "production";
-
+  try {
   getDb();
-  const approval = new FinalApprovalService().checkFinal(demoApprovalInput(id, forceDemoFinal));
+  await requireOwnedProject(id);
+  const approval = new FinalApprovalService().checkFinal(approvalInput(id));
   if (requestedFinal && !approval.approved) {
     return Response.json(
       {
@@ -211,13 +180,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     scenes.push({ title: sceneId, image: new Uint8Array(image), caption });
   }
 
-  const bom = [
-    { sku: "SF-SOFA-001", name: "三人沙发", quantity: 1, unitPrice: 12800, materialCode: "MAT-FAB-01" },
-    { sku: "SF-LAMP-009", name: "落地灯", quantity: 2, unitPrice: 680 },
-  ];
+  const bom = listBom(id).map((row)=>({sku:String(row.sku),name:String(row.name),quantity:Number(row.quantity),unitPrice:Number(row.unit_price),materialCode:row.material_code?String(row.material_code):undefined}));
+  if (bom.length === 0) return Response.json({error:"BOM_EMPTY"},{status:409});
   const subtotal = bom.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
-  const tax = Math.round(subtotal * 0.06 * 100) / 100;
-  const quote = { currency: "CNY", subtotal, tax, total: subtotal + tax };
+  const storedQuote=getLatestQuote(id);
+  const tax=Number(storedQuote?.tax??0),designFee=Number(storedQuote?.design_fee??0),discount=Number(storedQuote?.discount??0);
+  const quote = { currency: "HKD", subtotal, tax, total: subtotal + tax + designFee - discount };
 
   let fontPath: string;
   try {
@@ -238,7 +206,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     projectId: id,
     title: `Sharkflows 方案 ${id}`,
     status,
-    sceneVersion: "demo-v3",
+    sceneVersion: getFloorPlan(id)?.geometry_version ?? "unversioned",
     scenes,
     bom,
     quote,
@@ -271,7 +239,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       projectId: id,
       title: `Sharkflows 方案 ${id}`,
       status,
-      sceneVersion: "demo-v3",
+      sceneVersion: getFloorPlan(id)?.geometry_version ?? "unversioned",
       scenes,
       bom,
       quote,
@@ -293,4 +261,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       "X-Proposal-Status": status,
     },
   });
+  } catch (error) {
+    return accessErrorResponse(error) ?? Response.json({error:error instanceof Error?error.message:"EXPORT_FAILED"},{status:500});
+  }
 }

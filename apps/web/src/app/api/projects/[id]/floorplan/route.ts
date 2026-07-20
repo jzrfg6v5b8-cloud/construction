@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
-import { getFloorPlan, saveFloorPlan, touchProject, ensureDemoProject, getProject, createProject } from "@/lib/db/repositories";
+import { getFloorPlan, saveFloorPlan, touchProject, listApprovals } from "@/lib/db/repositories";
 import {
   createStarterFloorPlan,
   type FloorPlanDocument,
   toSpaceConfigurationDraft,
 } from "@/lib/floorplan/document";
 import { accessErrorResponse, requireOwnedProject } from "@/lib/auth/project-access";
-import { listApprovals } from "@/lib/db/repositories";
 
 function calibrationIssues(document: FloorPlanDocument): string[] {
   const issues: string[] = [];
@@ -31,11 +30,6 @@ function calibrationIssues(document: FloorPlanDocument): string[] {
 }
 
 export const runtime = "nodejs";
-
-function ensureProject(projectId: string) {
-  if (projectId === "demo") ensureDemoProject();
-  else if (!getProject(projectId)) createProject({ id: projectId, name: `项目 ${projectId.slice(0, 8)}` });
-}
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

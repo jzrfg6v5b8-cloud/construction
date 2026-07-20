@@ -1,49 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("opens projects workspace from home", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "每一张图、每一个尺寸，都有来源。" })).toBeVisible();
-  await page.getByRole("link", { name: "打开项目工作区" }).click();
-  await expect(page.getByRole("heading", { name: "项目工作区" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "新建项目" })).toBeVisible();
-});
+async function registerAndCreate(page:Page){
+ const email=`e2e-${Date.now()}-${Math.random().toString(16).slice(2)}@sharkflows.test`;
+ const registration=await page.request.post("/api/auth/register",{data:{email,password:"StrongPass!123",name:"E2E用户"},headers:{accept:"application/json"}});expect(registration.status()).toBe(201);
+ const created=await page.request.post("/api/projects",{data:{name:"端到端测试项目",address:"香港"}});expect(created.status()).toBe(201);return (await created.json()).project.id as string;
+}
 
-test("assets page lists real storage for a project", async ({ page }) => {
-  await page.goto("/projects/demo/assets");
-  await expect(page.getByRole("heading", { name: "素材库" })).toBeVisible();
-  await expect(page.getByText("素材总数")).toBeVisible();
-  await expect(page.getByRole("button", { name: /批量上传/ })).toBeVisible();
-});
-
-test("calibration route works under project id", async ({ page }) => {
-  await page.goto("/projects/demo/calibration");
-  await expect(page.getByRole("heading", { name: "户型校准" })).toBeVisible();
-  await expect(page.getByText("素材总数")).toBeVisible();
-});
-
-test("proposal exposes draft PDF and final blockers", async ({ page, request }) => {
-  await page.goto("/projects/demo/proposal");
-  await expect(page.getByRole("heading", { name: "方案输出" })).toBeVisible();
-  const finalResponse = await request.get("/api/projects/demo/proposal/export?status=FINAL");
-  expect(finalResponse.status()).toBe(409);
-  const draftResponse = await request.get("/api/projects/demo/proposal/export");
-  expect([200, 503]).toContain(draftResponse.status());
-  if (draftResponse.status() === 200) {
-    expect(draftResponse.headers()["content-type"]).toContain("application/pdf");
-  }
-});
-
-test("exports validated A03023 SpaceConfiguration and opens SketchUp sync", async ({ page, request }) => {
-  const response = await request.get("/api/projects/demo/sketchup/configuration");
-  expect(response.status()).toBe(200);
-  const configuration = await response.json();
-  expect(configuration).toMatchObject({
-    projectId: "A03023",
-    floorPlanCode: "A03023-2BR",
-    geometryVersion: "gv-0003",
-    dimensionsVerified: true,
-  });
-
-  await page.goto("/projects/demo/sketchup");
-  await expect(page.getByRole("heading", { name: /SketchUp/ })).toBeVisible();
-});
+test("未登录会被重定向且API返回401",async({page,request})=>{expect((await request.get("/api/projects")).status()).toBe(401);await page.goto("/projects");await expect(page).toHaveURL(/\/auth/);});
+test("注册登录后只能访问自己的项目",async({page})=>{const id=await registerAndCreate(page);await page.goto("/projects");await expect(page.getByRole("heading",{name:"项目工作区"})).toBeVisible();await expect(page.getByText("端到端测试项目")).toBeVisible();expect((await page.request.get(`/api/projects/${id}`)).status()).toBe(200);expect((await page.request.get("/api/projects/not-owned")).status()).toBe(404);});
+test("普通用户不能直接核验户型",async({page})=>{const id=await registerAndCreate(page);const floor=await (await page.request.get(`/api/projects/${id}/floorplan`)).json();floor.document.dimensionsVerified=true;const response=await page.request.put(`/api/projects/${id}/floorplan`,{data:{document:floor.document}});expect(response.status()).toBe(409);expect(await response.json()).toMatchObject({error:"CALIBRATION_REVIEW_REQUIRED",designerApprovalRequired:true});});
+test("真实BOM报价驱动PDF且FINAL保持门禁",async({page})=>{const id=await registerAndCreate(page);await page.request.put(`/api/projects/${id}/commerce`,{data:{product:{sku:"BED-1200",name:"1200床",category:"家具",widthMm:1200,depthMm:1900,heightMm:450,unitCost:1200,unitPrice:2200,dimensionsVerified:true}}});await page.request.put(`/api/projects/${id}/commerce`,{data:{sourceVersion:"v1",bom:[{sku:"BED-1200",name:"1200床",quantity:1,unit:"piece",unitCost:1200,unitPrice:2200}]}});await page.request.put(`/api/projects/${id}/commerce`,{data:{quote:{version:"q1",currency:"HKD",designFee:500}}});expect((await page.request.get(`/api/projects/${id}/proposal/export?status=FINAL`)).status()).toBe(409);const draft=await page.request.get(`/api/projects/${id}/proposal/export`);expect([200,503]).toContain(draft.status());});
+test("Three.js场景编辑器可打开",async({page})=>{const id=await registerAndCreate(page);await page.goto(`/projects/${id}/scene-builder`);await expect(page.getByText("实时3D空间")).toBeVisible();await expect(page.getByRole("button",{name:"导出当前场景PNG"})).toBeVisible();});

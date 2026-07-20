@@ -1,0 +1,8 @@
+.next
+.next-*
+.next-manual
+.next-playwright
+node_modules
+.data
+test-results
+playwright-report

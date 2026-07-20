@@ -5,11 +5,13 @@ import {
   VisionWorkerJobRequestSchema,
   VisionWorkerUnavailableError,
 } from "@/lib/providers/vision-worker-client";
+import { accessErrorResponse, requireOwnedProject } from "@/lib/auth/project-access";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id: projectId } = await context.params;
+  try { await requireOwnedProject(projectId); } catch (error) { return accessErrorResponse(error) ?? NextResponse.json({error:"INTERNAL_ERROR"},{status:500}); }
   let payload: unknown;
   try {
     payload = await request.json();
@@ -83,6 +85,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id: projectId } = await context.params;
+  try { await requireOwnedProject(projectId); } catch (error) { return accessErrorResponse(error) ?? NextResponse.json({error:"INTERNAL_ERROR"},{status:500}); }
   const client = createVisionWorkerClient();
   try {
     const health = await client.health();

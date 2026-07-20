@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const monorepoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const nextConfig: NextConfig = {
-  distDir: ".next",
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   outputFileTracingRoot: monorepoRoot,
   allowedDevOrigins: ["127.0.0.1"],
   transpilePackages: ["@sharkflows/space-schema", "@sharkflows/processing-queue"],

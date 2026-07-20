@@ -16,6 +16,7 @@ export type EditableRoom = {
   name: string;
   polygon: FloorPointMm[];
 };
+export type EditableOpening = { objectId:string; wallId:string; kind:"DOOR"|"WINDOW"; offsetMm:number; widthMm:number; heightMm:number; sillHeightMm:number; verificationStatus:"CANDIDATE"|"REVIEWED"|"VERIFIED" };
 
 export type FloorPlanDocument = {
   schemaVersion: "floorplan-editor-1";
@@ -26,6 +27,7 @@ export type FloorPlanDocument = {
   ceilingHeightMm: number;
   walls: EditableWall[];
   rooms: EditableRoom[];
+  openings?: EditableOpening[];
   scalePxPerMeter: number;
 };
 
@@ -43,6 +45,7 @@ export function createEmptyFloorPlan(projectId: string): FloorPlanDocument {
     ceilingHeightMm: 2800,
     walls: [],
     rooms: [],
+    openings: [],
     scalePxPerMeter: 40,
   };
 }
@@ -142,9 +145,9 @@ export function toSpaceConfigurationDraft(doc: FloorPlanDocument) {
       locked: wall.wallType !== "INTERIOR",
       ...mapVerification(wall.verificationStatus, doc.dimensionsVerified),
     })),
-    openings: [] as unknown[],
-    windows: [] as unknown[],
-    doors: [] as unknown[],
+    openings: (doc.openings??[]).map((opening)=>({objectId:opening.objectId,wallObjectId:opening.wallId,openingType:opening.kind,offsetMm:opening.offsetMm,widthMm:opening.widthMm,heightMm:opening.heightMm,sillHeightMm:opening.sillHeightMm,...mapVerification(opening.verificationStatus,doc.dimensionsVerified)})),
+    windows: (doc.openings??[]).filter((item)=>item.kind==="WINDOW").map((item)=>item.objectId),
+    doors: (doc.openings??[]).filter((item)=>item.kind==="DOOR").map((item)=>item.objectId),
     fixedZones: [] as unknown[],
     partitions: [] as unknown[],
     rooms: rooms.map((room) => {

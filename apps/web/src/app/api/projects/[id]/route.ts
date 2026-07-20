@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
 import {
   deleteProject,
-  getProject,
   listAssets,
   updateProject,
 } from "@/lib/db/repositories";

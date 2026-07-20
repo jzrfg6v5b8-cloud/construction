@@ -1,17 +1,23 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Box } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { SceneRendersPanel } from "@/components/rendering/scene-renders-panel";
 import { buttonSecondary } from "@/components/ui";
 import { useProjectMeta } from "@/lib/projects/use-project-meta";
+import { SpaceSceneCanvas } from "@/components/rendering/space-scene-canvas";
+import type { FloorPlanDocument } from "@/lib/floorplan/document";
 
 export default function SceneBuilderPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const { projectName } = useProjectMeta(projectId);
+  const [floorPlan,setFloorPlan]=useState<FloorPlanDocument|null>(null);
+  const [products,setProducts]=useState<Array<{id:string;sku:string;name:string;width_mm:number|null;depth_mm:number|null;height_mm:number|null;material_code:string|null}>>([]);
+  useEffect(()=>{let active=true;Promise.all([fetch(`/api/projects/${projectId}/floorplan`).then((r)=>r.ok?r.json():null),fetch(`/api/projects/${projectId}/commerce`).then((r)=>r.ok?r.json():null)]).then(([floor,commerce])=>{if(active){setFloorPlan(floor?.document??null);setProducts(commerce?.products??[])}});return()=>{active=false}},[projectId]);
 
   return (
     <AppShell
@@ -31,6 +37,7 @@ export default function SceneBuilderPage() {
         </>
       }
     >
+      {floorPlan && <section className="mb-6"><div className="mb-2 flex items-center justify-between"><h2 className="font-bold">实时3D空间</h2><span className="text-xs text-slate-500">几何版本 {floorPlan.geometryVersion}</span></div><SpaceSceneCanvas document={floorPlan} products={products}/></section>}
       <SceneRendersPanel projectId={projectId} />
     </AppShell>
   );

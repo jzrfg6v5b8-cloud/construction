@@ -50,7 +50,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     verifyFloorplan?: boolean;
     seedRenders?: boolean;
   };
-  const verifyFloorplan = body.verifyFloorplan !== false;
+  const verifyFloorplan = false;
   const seedRenders = body.seedRenders !== false;
 
   let document: FloorPlanDocument;

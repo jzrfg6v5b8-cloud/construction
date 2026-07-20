@@ -93,7 +93,7 @@ const dictionaries = {
         ["采购识别", "合并商品图片，确认 SKU、尺寸、价格与空间"],
         ["组图编辑器", "同一模型生成平面、鸟瞰、房间和材料板"],
       ],
-      notice: "当前为可运行第一阶段：本地视觉可接 vision-worker；PaddleOCR 可选；场景为非照片级结构示意。",
+      notice: "生产链路已启用：登录鉴权、户型校准门禁、商品与 BOM 报价、3D 空间配置、OCR/DeepSeek 审核及真实数据 PDF。施工尺寸仍须现场复尺。",
     },
   },
   "zh-TW": {
@@ -184,7 +184,7 @@ const dictionaries = {
         ["採購辨識", "合併商品圖片，確認 SKU、尺寸、價格與空間"],
         ["組圖編輯器", "由同一模型產生平面、鳥瞰、房間及材料板"],
       ],
-      notice: "目前為可執行的第一階段：本機視覺可接 vision-worker；PaddleOCR 可選；場景為非照片級結構示意。",
+      notice: "生產流程已啟用：登入鑑權、戶型校準門禁、商品與 BOM 報價、3D 空間配置、OCR/DeepSeek 審核及真實數據 PDF。施工尺寸仍須現場覆尺。",
     },
   },
   en: {
@@ -275,7 +275,7 @@ const dictionaries = {
         ["Procurement recognition", "Merge product images and verify SKUs, dimensions, prices, and rooms"],
         ["Scene editor", "Generate plans, aerial views, rooms, and material boards from one model"],
       ],
-      notice: "Runnable first stage: local vision can call vision-worker; PaddleOCR is optional; scenes are non-photorealistic.",
+      notice: "Production workflow enabled: authenticated projects, calibration gate, product/BOM quotes, 3D configuration, OCR/DeepSeek review, and data-backed PDFs. Site measurements remain mandatory.",
     },
   },
 } as const;
