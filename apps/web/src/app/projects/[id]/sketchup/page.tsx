@@ -1,14 +1,17 @@
 import { AppShell } from "@/components/app-shell";
 import { LayoutChecklistPanel } from "@/components/layout/layout-checklist-panel";
 import { SketchUpSyncPanel } from "@/components/sketchup-sync-panel";
-import { getProject, ensureDemoProject } from "@/lib/db/repositories";
+import { getProjectAsync, ensureDemoProject } from "@/lib/db/repositories";
 import { getDb } from "@/lib/db/client";
+import { useCloudDb } from "@/lib/db/cloud-store";
 
 export default async function ProjectSketchUpPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  getDb();
-  if (id === "demo") ensureDemoProject();
-  const project = getProject(id);
+  if (!useCloudDb()) {
+    getDb();
+    if (id === "demo") ensureDemoProject();
+  }
+  const project = await getProjectAsync(id);
   const name = project?.name ?? (id === "demo" ? "A03023 两房方案" : id);
 
   return (

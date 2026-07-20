@@ -45,20 +45,21 @@ export function AppShell({
   description,
   actions,
   fullBleed = false,
-  projectId = "demo",
+  projectId,
   projectName,
 }: AppShellProps) {
   const { messages } = useLocale();
   const shell = messages.shell;
-  const base = `/projects/${projectId}`;
+  const hasProject = Boolean(projectId && projectId !== "demo");
+  const base = hasProject ? `/projects/${projectId}` : null;
   const navigation = [
-    { key: "project" as const, label: shell.project, href: "/projects", icon: FolderKanban },
-    { key: "assets" as const, label: shell.assets, href: `${base}/assets`, icon: FileImage },
-    { key: "calibration" as const, label: shell.calibration, href: `${base}/calibration`, icon: Grid2X2 },
-    { key: "procurement" as const, label: shell.procurement, href: `${base}/procurement`, icon: Blocks },
-    { key: "scene" as const, label: shell.scene, href: `${base}/scene-builder`, icon: Box },
-    { key: "proposal" as const, label: shell.proposal, href: `${base}/proposal`, icon: FileText },
-    { key: "sketchup" as const, label: shell.sketchup, href: `${base}/sketchup`, icon: Workflow },
+    { key: "project" as const, label: shell.project, href: "/projects", icon: FolderKanban, enabled: true },
+    { key: "assets" as const, label: shell.assets, href: base ? `${base}/assets` : "/projects", icon: FileImage, enabled: hasProject },
+    { key: "calibration" as const, label: shell.calibration, href: base ? `${base}/calibration` : "/projects", icon: Grid2X2, enabled: hasProject },
+    { key: "procurement" as const, label: shell.procurement, href: base ? `${base}/procurement` : "/projects", icon: Blocks, enabled: hasProject },
+    { key: "scene" as const, label: shell.scene, href: base ? `${base}/scene-builder` : "/projects", icon: Box, enabled: hasProject },
+    { key: "proposal" as const, label: shell.proposal, href: base ? `${base}/proposal` : "/projects", icon: FileText, enabled: hasProject },
+    { key: "sketchup" as const, label: shell.sketchup, href: base ? `${base}/sketchup` : "/projects", icon: Workflow, enabled: hasProject },
   ];
 
   const currentLabel = navigation.find((item) => item.key === current)?.label ?? current;
@@ -85,6 +86,18 @@ export function AppShell({
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = current === item.key;
+            if (!item.enabled) {
+              return (
+                <span
+                  key={item.key}
+                  title="请先创建项目"
+                  className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 opacity-50"
+                >
+                  <Icon size={17} className="text-slate-600" />
+                  {item.label}
+                </span>
+              );
+            }
             return (
               <Link
                 key={item.key}
@@ -104,7 +117,9 @@ export function AppShell({
         </nav>
         <div className="m-3 rounded-xl border border-white/10 bg-white/5 p-4">
           <p className="text-xs font-semibold">{displayName}</p>
-          <p className="mt-2 truncate text-[11px] text-slate-400">ID · {projectId}</p>
+          <p className="mt-2 truncate text-[11px] text-slate-400">
+            {hasProject ? `ID · ${projectId}` : "尚未选择项目"}
+          </p>
           <Link
             href="/projects"
             className="mt-3 inline-flex text-[11px] font-semibold text-teal-300 hover:text-teal-200"

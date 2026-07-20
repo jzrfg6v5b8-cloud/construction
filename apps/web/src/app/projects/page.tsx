@@ -86,12 +86,16 @@ export default function ProjectsPage() {
       } catch {
         /* ignore */
       }
-      // Seed verified plan + demo scenes so the project is immediately usable.
-      await fetch(`/api/projects/${projectId}/bootstrap`, {
+      // Seed verified plan (scene PNGs skipped on Vercel — no durable disk).
+      const boot = await fetch(`/api/projects/${projectId}/bootstrap`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ verifyFloorplan: true, seedRenders: true }),
+        body: JSON.stringify({ verifyFloorplan: true, seedRenders: false }),
       });
+      if (!boot.ok) {
+        // Project exists; still enter workspace even if bootstrap soft-fails.
+        console.warn("bootstrap failed", await boot.text().catch(() => ""));
+      }
       setName("");
       setAddress("");
       router.push(`/projects/${projectId}/calibration`);
@@ -134,7 +138,7 @@ export default function ProjectsPage() {
   }
 
   const loading = projects === null;
-  const activeId = projects?.[0]?.id ?? "demo";
+  const activeId = projects?.[0]?.id;
 
   return (
     <AppShell
@@ -142,7 +146,7 @@ export default function ProjectsPage() {
       projectId={activeId}
       projectName="全部项目"
       title="项目工作区"
-      description="创建后会自动写入起步户型与演示场景图，无需 SketchUp 也能导出 DRAFT PDF。真渲染再换 PNG。"
+      description="创建后会自动写入起步户型，无需 SketchUp 也能先改墙、再导出。真渲染再换 PNG。"
     >
       <section className="rounded-xl border border-teal-200 bg-teal-50/60 p-4 text-xs leading-5 text-teal-950">
         <strong>最短跑通：</strong>

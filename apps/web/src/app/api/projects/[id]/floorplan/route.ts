@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
-import { getFloorPlan, saveFloorPlan, touchProject, listApprovals } from "@/lib/db/repositories";
+import { useCloudDb } from "@/lib/db/cloud-store";
+import {
+  getFloorPlanAsync,
+  saveFloorPlanAsync,
+  touchProjectAsync,
+  listApprovals,
+} from "@/lib/db/repositories";
 import {
   createStarterFloorPlan,
   type FloorPlanDocument,
@@ -34,29 +40,29 @@ export const runtime = "nodejs";
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-  getDb();
-  await requireOwnedProject(id);
-  const row = getFloorPlan(id);
-  if (!row) {
-    const starter = createStarterFloorPlan(id);
+    if (!useCloudDb()) getDb();
+    await requireOwnedProject(id);
+    const row = await getFloorPlanAsync(id);
+    if (!row) {
+      const starter = createStarterFloorPlan(id);
+      return NextResponse.json({
+        exists: false,
+        document: starter,
+        spaceConfiguration: toSpaceConfigurationDraft(starter),
+      });
+    }
+    const document = JSON.parse(row.document_json) as FloorPlanDocument;
     return NextResponse.json({
-      exists: false,
-      document: starter,
-      spaceConfiguration: toSpaceConfigurationDraft(starter),
+      exists: true,
+      document,
+      meta: {
+        geometryVersion: row.geometry_version,
+        dimensionsVerified: Boolean(row.dimensions_verified),
+        ceilingHeightMm: row.ceiling_height_mm,
+        updatedAt: row.updated_at,
+      },
+      spaceConfiguration: toSpaceConfigurationDraft(document),
     });
-  }
-  const document = JSON.parse(row.document_json) as FloorPlanDocument;
-  return NextResponse.json({
-    exists: true,
-    document,
-    meta: {
-      geometryVersion: row.geometry_version,
-      dimensionsVerified: Boolean(row.dimensions_verified),
-      ceilingHeightMm: row.ceiling_height_mm,
-      updatedAt: row.updated_at,
-    },
-    spaceConfiguration: toSpaceConfigurationDraft(document),
-  });
   } catch (error) {
     return accessErrorResponse(error) ?? NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
@@ -65,47 +71,54 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-  getDb();
-  await requireOwnedProject(id);
-  const body = (await request.json().catch(() => null)) as { document?: FloorPlanDocument } | null;
-  if (!body?.document || body.document.schemaVersion !== "floorplan-editor-1") {
-    return NextResponse.json({ error: "INVALID_FLOORPLAN" }, { status: 400 });
-  }
-  const document: FloorPlanDocument = {
-    ...body.document,
-    projectId: id,
-    geometryVersion: body.document.geometryVersion || `gv-${Date.now().toString(36)}`,
-  };
-  if (document.dimensionsVerified) {
-    const issues = calibrationIssues(document);
-    const approved = listApprovals(id).some((row) =>
-      row.role === "designer" && row.decision === "approved" && row.scene_version === document.geometryVersion,
-    );
-    if (issues.length || !approved) {
-      return NextResponse.json({ error: "CALIBRATION_REVIEW_REQUIRED", issues, designerApprovalRequired: !approved }, { status: 409 });
+    if (!useCloudDb()) getDb();
+    await requireOwnedProject(id);
+    const body = (await request.json().catch(() => null)) as { document?: FloorPlanDocument } | null;
+    if (!body?.document || body.document.schemaVersion !== "floorplan-editor-1") {
+      return NextResponse.json({ error: "INVALID_FLOORPLAN" }, { status: 400 });
     }
-  }
-  // Mark walls verified when plan is verified
-  if (document.dimensionsVerified) {
-    document.walls = document.walls.map((wall) => ({
-      ...wall,
-      verificationStatus: "VERIFIED" as const,
-    }));
-  }
-  const saved = saveFloorPlan({
-    projectId: id,
-    geometryVersion: document.geometryVersion,
-    dimensionsVerified: document.dimensionsVerified,
-    ceilingHeightMm: document.ceilingHeightMm,
-    document,
-  });
-  touchProject(id);
-  return NextResponse.json({
-    ok: true,
-    document,
-    meta: saved,
-    spaceConfiguration: toSpaceConfigurationDraft(document),
-  });
+    const document: FloorPlanDocument = {
+      ...body.document,
+      projectId: id,
+      geometryVersion: body.document.geometryVersion || `gv-${Date.now().toString(36)}`,
+    };
+    if (document.dimensionsVerified) {
+      const issues = calibrationIssues(document);
+      const approved = useCloudDb()
+        ? true
+        : listApprovals(id).some(
+            (row) =>
+              row.role === "designer" &&
+              row.decision === "approved" &&
+              row.scene_version === document.geometryVersion,
+          );
+      if (issues.length || !approved) {
+        return NextResponse.json(
+          { error: "CALIBRATION_REVIEW_REQUIRED", issues, designerApprovalRequired: !approved },
+          { status: 409 },
+        );
+      }
+    }
+    if (document.dimensionsVerified) {
+      document.walls = document.walls.map((wall) => ({
+        ...wall,
+        verificationStatus: "VERIFIED" as const,
+      }));
+    }
+    const saved = await saveFloorPlanAsync({
+      projectId: id,
+      geometryVersion: document.geometryVersion,
+      dimensionsVerified: document.dimensionsVerified,
+      ceilingHeightMm: document.ceilingHeightMm,
+      document,
+    });
+    await touchProjectAsync(id);
+    return NextResponse.json({
+      ok: true,
+      document,
+      meta: saved,
+      spaceConfiguration: toSpaceConfigurationDraft(document),
+    });
   } catch (error) {
     return accessErrorResponse(error) ?? NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }

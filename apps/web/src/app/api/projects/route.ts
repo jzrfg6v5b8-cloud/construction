@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db/client";
 import {
-  createProject,
-  listProjects,
+  createProjectAsync,
+  listProjectsAsync,
 } from "@/lib/db/repositories";
 import { accessErrorResponse, requireUser } from "@/lib/auth/project-access";
+import { useCloudDb } from "@/lib/db/cloud-store";
+import { getDb } from "@/lib/db/client";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    getDb();
+    if (!useCloudDb()) getDb();
     const user = await requireUser();
-    return NextResponse.json({ projects: listProjects(user.id) });
+    return NextResponse.json({ projects: await listProjectsAsync(user.id) });
   } catch (error) {
     return accessErrorResponse(error) ?? NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
@@ -20,17 +21,23 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    getDb();
+    if (!useCloudDb()) getDb();
     const user = await requireUser();
     const body = (await request.json().catch(() => ({}))) as {
-    name?: string;
-    address?: string;
-    notes?: string;
-  };
+      name?: string;
+      address?: string;
+      notes?: string;
+    };
     if (!body.name?.trim()) return NextResponse.json({ error: "PROJECT_NAME_REQUIRED" }, { status: 400 });
-    const project = createProject({ name: body.name, address: body.address, notes: body.notes, userId: user.id });
+    const project = await createProjectAsync({
+      name: body.name,
+      address: body.address,
+      notes: body.notes,
+      userId: user.id,
+    });
     return NextResponse.json({ project }, { status: 201 });
   } catch (error) {
-    return accessErrorResponse(error) ?? NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "INTERNAL_ERROR";
+    return accessErrorResponse(error) ?? NextResponse.json({ error: message }, { status: 500 });
   }
 }

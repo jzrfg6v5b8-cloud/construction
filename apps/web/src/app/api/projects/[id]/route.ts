@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client";
+import { useCloudDb } from "@/lib/db/cloud-store";
 import {
-  deleteProject,
+  deleteProjectAsync,
   listAssets,
   updateProject,
 } from "@/lib/db/repositories";
@@ -17,20 +18,20 @@ export async function GET(
 ) {
   const { id } = await context.params;
   try {
-  getDb();
-  const { project } = await requireOwnedProject(id);
-  const assets = listAssets(id);
-  const totalBytes = assets.reduce((sum, item) => sum + item.size_bytes, 0);
-  return NextResponse.json({
-    project,
-    stats: {
-      assetCount: assets.length,
-      totalBytes,
-      queued: assets.filter((item) => item.processing_status === "QUEUED").length,
-      completed: assets.filter((item) => item.processing_status === "COMPLETED").length,
-      review: assets.filter((item) => item.processing_status === "HUMAN_REVIEW_REQUIRED").length,
-    },
-  });
+    if (!useCloudDb()) getDb();
+    const { project } = await requireOwnedProject(id);
+    const assets = useCloudDb() ? [] : listAssets(id);
+    const totalBytes = assets.reduce((sum, item) => sum + item.size_bytes, 0);
+    return NextResponse.json({
+      project,
+      stats: {
+        assetCount: assets.length,
+        totalBytes,
+        queued: assets.filter((item) => item.processing_status === "QUEUED").length,
+        completed: assets.filter((item) => item.processing_status === "COMPLETED").length,
+        review: assets.filter((item) => item.processing_status === "HUMAN_REVIEW_REQUIRED").length,
+      },
+    });
   } catch (error) {
     return accessErrorResponse(error) ?? NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
@@ -42,19 +43,30 @@ export async function PATCH(
 ) {
   const { id } = await context.params;
   try {
-  getDb();
-  await requireOwnedProject(id);
-  const body = (await request.json().catch(() => ({}))) as {
-    name?: string;
-    address?: string | null;
-    notes?: string | null;
-    status?: string;
-  };
-  const project = updateProject(id, body);
-  if (!project) {
-    return NextResponse.json({ error: "PROJECT_NOT_FOUND" }, { status: 404 });
-  }
-  return NextResponse.json({ project });
+    if (!useCloudDb()) getDb();
+    const { project: existing } = await requireOwnedProject(id);
+    const body = (await request.json().catch(() => ({}))) as {
+      name?: string;
+      address?: string | null;
+      notes?: string | null;
+      status?: string;
+    };
+    if (useCloudDb()) {
+      return NextResponse.json({
+        project: {
+          ...existing,
+          name: body.name?.trim() || existing.name,
+          address: body.address === undefined ? existing.address : body.address,
+          notes: body.notes === undefined ? existing.notes : body.notes,
+          status: body.status ?? existing.status,
+        },
+      });
+    }
+    const project = updateProject(id, body);
+    if (!project) {
+      return NextResponse.json({ error: "PROJECT_NOT_FOUND" }, { status: 404 });
+    }
+    return NextResponse.json({ project });
   } catch (error) {
     return accessErrorResponse(error) ?? NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
@@ -66,13 +78,15 @@ export async function DELETE(
 ) {
   const { id } = await context.params;
   try {
-    getDb();
+    if (!useCloudDb()) getDb();
     await requireOwnedProject(id);
-    const assets = listAssets(id);
-    const storage = createObjectStorage();
-    await Promise.all(assets.map((asset) => storage.delete(asset.storage_key).catch(() => undefined)));
-    await deletePrivateProjectFiles(id);
-    deleteProject(id);
+    if (!useCloudDb()) {
+      const assets = listAssets(id);
+      const storage = createObjectStorage();
+      await Promise.all(assets.map((asset) => storage.delete(asset.storage_key).catch(() => undefined)));
+      await deletePrivateProjectFiles(id);
+    }
+    await deleteProjectAsync(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return accessErrorResponse(error) ?? NextResponse.json({ error: "DELETE_FAILED" }, { status: 500 });

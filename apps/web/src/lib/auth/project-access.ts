@@ -1,5 +1,5 @@
 import { getSessionUser, type AuthUser } from "@/lib/auth/session";
-import { getProject, type ProjectRecord } from "@/lib/db/repositories";
+import { getProjectAsync, type ProjectRecord } from "@/lib/db/repositories";
 
 export class AccessError extends Error {
   constructor(
@@ -21,7 +21,7 @@ export async function requireOwnedProject(projectId: string): Promise<{
   project: ProjectRecord;
 }> {
   const user = await requireUser();
-  const project = getProject(projectId);
+  const project = await getProjectAsync(projectId);
   if (!project || project.user_id !== user.id) {
     // Deliberately hide whether another user's project exists.
     throw new AccessError("PROJECT_NOT_FOUND", 404);

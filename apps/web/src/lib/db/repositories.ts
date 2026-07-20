@@ -1,5 +1,15 @@
 import { randomBytes } from "node:crypto";
 import { getDb } from "./client";
+import {
+  cloudCreateProject,
+  cloudDeleteProject,
+  cloudGetFloorPlan,
+  cloudGetProject,
+  cloudListProjects,
+  cloudSaveFloorPlan,
+  cloudTouchProject,
+  useCloudDb,
+} from "./cloud-store";
 
 function nowIso() {
   return new Date().toISOString();
@@ -32,6 +42,9 @@ export function createProject(input: {
   userId?: string | null;
   id?: string;
 }): ProjectRecord {
+  if (useCloudDb()) {
+    throw new Error("USE_createProjectAsync");
+  }
   const projectId = input.id ?? id("prj");
   const stamp = nowIso();
   const name = input.name.trim();
@@ -53,11 +66,42 @@ export function createProject(input: {
   return getProject(projectId)!;
 }
 
+export async function createProjectAsync(input: {
+  name: string;
+  address?: string;
+  notes?: string;
+  userId?: string | null;
+  id?: string;
+}): Promise<ProjectRecord> {
+  const projectId = input.id ?? id("prj");
+  const name = input.name.trim();
+  if (!name) throw new Error("PROJECT_NAME_REQUIRED");
+  if (useCloudDb()) {
+    if (!input.userId) throw new Error("PROJECT_USER_REQUIRED");
+    return cloudCreateProject({
+      id: projectId,
+      userId: input.userId,
+      name,
+      address: input.address?.trim() || null,
+      notes: input.notes?.trim() || null,
+    });
+  }
+  return createProject(input);
+}
+
 export function getProject(projectId: string): ProjectRecord | undefined {
+  // On serverless/cloud, use getProjectAsync — sync SQLite is not durable.
+  if (useCloudDb()) return undefined;
   return sqlite().prepare("SELECT * FROM projects WHERE id = ?").get(projectId) as ProjectRecord | undefined;
 }
 
+export async function getProjectAsync(projectId: string): Promise<ProjectRecord | undefined> {
+  if (useCloudDb()) return cloudGetProject(projectId);
+  return getProject(projectId);
+}
+
 export function listProjects(userId?: string | null): ProjectRecord[] {
+  if (useCloudDb()) return [];
   const db = sqlite();
   if (userId) {
     return db
@@ -78,6 +122,14 @@ export function listProjects(userId?: string | null): ProjectRecord[] {
        ORDER BY p.updated_at DESC`,
     )
     .all() as ProjectRecord[];
+}
+
+export async function listProjectsAsync(userId?: string | null): Promise<ProjectRecord[]> {
+  if (useCloudDb()) {
+    if (!userId) return [];
+    return cloudListProjects(userId);
+  }
+  return listProjects(userId);
 }
 
 export function updateProject(
@@ -105,10 +157,25 @@ export function updateProject(
 }
 
 export function touchProject(projectId: string) {
+  if (useCloudDb()) {
+    void cloudTouchProject(projectId);
+    return;
+  }
   sqlite().prepare("UPDATE projects SET updated_at = ? WHERE id = ?").run(nowIso(), projectId);
 }
 
+export async function touchProjectAsync(projectId: string) {
+  if (useCloudDb()) {
+    await cloudTouchProject(projectId);
+    return;
+  }
+  touchProject(projectId);
+}
+
 export function ensureDemoProject(): ProjectRecord {
+  if (useCloudDb()) {
+    throw new Error("DEMO_DISABLED_ON_CLOUD");
+  }
   const existing = getProject("demo");
   if (existing) return existing;
   return createProject({
@@ -120,6 +187,9 @@ export function ensureDemoProject(): ProjectRecord {
 }
 
 export function deleteProject(projectId: string) {
+  if (useCloudDb()) {
+    throw new Error("USE_deleteProjectAsync");
+  }
   const db = sqlite();
   db.prepare("DELETE FROM assets WHERE project_id = ?").run(projectId);
   db.prepare("DELETE FROM processing_jobs WHERE batch_id = ?").run(projectId);
@@ -130,6 +200,14 @@ export function deleteProject(projectId: string) {
   db.prepare("DELETE FROM layout_checklists WHERE project_id = ?").run(projectId);
   db.prepare("DELETE FROM sketchup_results WHERE project_id = ?").run(projectId);
   db.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
+}
+
+export async function deleteProjectAsync(projectId: string) {
+  if (useCloudDb()) {
+    await cloudDeleteProject(projectId);
+    return;
+  }
+  deleteProject(projectId);
 }
 
 export type StoredAssetRow = {
@@ -504,6 +582,9 @@ export function saveFloorPlan(input: {
   document: unknown;
 }) {
   const stamp = nowIso();
+  if (useCloudDb()) {
+    throw new Error("USE_saveFloorPlanAsync");
+  }
   const existing = sqlite().prepare("SELECT id FROM floor_plans WHERE project_id = ?").get(input.projectId) as
     | { id: string }
     | undefined;
@@ -544,7 +625,34 @@ export function saveFloorPlan(input: {
   return getFloorPlan(input.projectId);
 }
 
+export async function saveFloorPlanAsync(input: {
+  projectId: string;
+  geometryVersion: string;
+  dimensionsVerified: boolean;
+  ceilingHeightMm: number;
+  document: unknown;
+}) {
+  const stamp = nowIso();
+  if (useCloudDb()) {
+    const existing = await cloudGetFloorPlan(input.projectId);
+    const row = {
+      id: existing?.id ?? `fp_${input.projectId}`,
+      project_id: input.projectId,
+      geometry_version: input.geometryVersion,
+      dimensions_verified: input.dimensionsVerified ? 1 : 0,
+      ceiling_height_mm: input.ceilingHeightMm,
+      document_json: JSON.stringify(input.document),
+      created_at: existing?.created_at ?? stamp,
+      updated_at: stamp,
+    };
+    await cloudSaveFloorPlan(row);
+    return row;
+  }
+  return saveFloorPlan(input);
+}
+
 export function getFloorPlan(projectId: string) {
+  if (useCloudDb()) return undefined;
   return sqlite().prepare("SELECT * FROM floor_plans WHERE project_id = ?").get(projectId) as
     | {
         id: string;
@@ -557,6 +665,11 @@ export function getFloorPlan(projectId: string) {
         updated_at: string;
       }
     | undefined;
+}
+
+export async function getFloorPlanAsync(projectId: string) {
+  if (useCloudDb()) return cloudGetFloorPlan(projectId);
+  return getFloorPlan(projectId);
 }
 
 export type LayoutChecklist = {
