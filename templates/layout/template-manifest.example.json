@@ -1,0 +1,48 @@
+{
+  "$schema": "https://example.invalid/sharkflows/layout-template-manifest.schema.json",
+  "manifestVersion": "1.0",
+  "kind": "layout-template-contract",
+  "notice": "Convention example only; no binary .layout template or automatic PDF is included.",
+  "template": {
+    "id": "A3-interiors-zh-CN",
+    "paper": "A3-landscape",
+    "units": "millimeters",
+    "requiredSketchUpMajor": 2026,
+    "requiredLayOutMajor": 2026
+  },
+  "naming": {
+    "artifactPattern": "<project>_<scheme>_<artifact>_<revision>_<YYYYMMDD>.<ext>",
+    "scenePattern": "<sheet>-<purpose>-<view>",
+    "revisionStates": ["WIP", "R", "A"]
+  },
+  "pages": [
+    {"sheet": "A-000", "title": "封面与说明", "scale": "NTS"},
+    {"sheet": "A-101", "title": "尺寸平面", "scale": "1:50", "scene": "A-101-DIM-PLAN"},
+    {"sheet": "A-102", "title": "家具平面", "scale": "1:50", "scene": "A-102-FURN-PLAN"},
+    {"sheet": "A-301", "title": "客厅北立面", "scale": "1:20", "scene": "A-301-LIVING-NORTH"},
+    {"sheet": "A-501", "title": "SKU 与材料表", "scale": "NTS"},
+    {"sheet": "A-901", "title": "校核与变更", "scale": "NTS"}
+  ],
+  "viewportRules": {
+    "orthographicOnlyForScaledViews": true,
+    "perspectiveScale": "NTS",
+    "sceneMustBeExplicit": true,
+    "allowedScales": ["1:50", "1:20", "1:10", "1:5"]
+  },
+  "associativeDimensionChecks": [
+    "dimension-attached-to-model-geometry",
+    "no-broken-or-shifted-dimensions",
+    "dimension-chain-matches-verified-source",
+    "manual-review-signed-after-reference-refresh"
+  ],
+  "manualLayOutSteps": [
+    "Open the designated .layout and refresh the .skp reference.",
+    "Inspect references, scenes, scales, and every associative dimension.",
+    "Click PDF export in LayOut and verify the exported package."
+  ],
+  "automationLimits": {
+    "rubyApiFullyAutomatesLayOutRefresh": false,
+    "automaticPdfIncluded": false,
+    "binaryLayoutIncluded": false
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@sharkflows/processing-queue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:redis": "RUN_REDIS_TESTS=1 vitest run test/bullmq.integration.test.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5",
+    "ioredis": "^5"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false
+}

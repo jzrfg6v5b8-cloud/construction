@@ -1,26 +1,26 @@
 {
-  "name": "sharkflows-space-configurator",
-  "version": "0.1.0",
+  "name": "sharkflows-space-configurator-monorepo",
+  "version": "0.2.0",
   "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/space-schema",
+    "packages/sketchup-export",
+    "packages/processing-queue"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "npm run dev -w @sharkflows/web",
+    "dev:bridge": "npm run dev -w @sharkflows/sketchup-export",
+    "dev:vision": "cd apps/vision-worker && python3 -m uvicorn vision_worker.main:app --host 127.0.0.1 --port 8091",
+    "build": "npm run build -w @sharkflows/space-schema && npm run build -w @sharkflows/sketchup-export && npm run build -w @sharkflows/processing-queue && npm run build -w @sharkflows/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && npm run test:ruby",
+    "test:ruby": "ruby -Iapps/sketchup-extension/test -e \"Dir['apps/sketchup-extension/test/*_test.rb'].sort.each { |file| require File.expand_path(file) }\"",
+    "test:e2e": "npm run test:e2e -w @sharkflows/web",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run build"
   },
-  "dependencies": {
-    "next": "16.2.10",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.10",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+  "engines": {
+    "node": ">=20"
   }
 }

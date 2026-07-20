@@ -1,0 +1,12 @@
+{
+  "jobId": "demo-job-001",
+  "source": {
+    "filename": "sample.png",
+    "mediaType": "image/png",
+    "dataBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
+  },
+  "options": {
+    "ocrMode": "heuristic",
+    "saveDerivedFiles": false
+  }
+}

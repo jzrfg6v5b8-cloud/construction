@@ -1,0 +1,62 @@
+{
+  "manifestVersion": "1.0",
+  "kind": "sketchup-layout-handoff",
+  "projectId": "A03023",
+  "schemeId": "S01",
+  "revision": "R03",
+  "status": "DRAFT",
+  "createdAt": "2026-07-20T06:30:00Z",
+  "createdBy": "demo-operator",
+  "source": {
+    "spaceVersion": "demo-v3",
+    "units": "millimeters",
+    "modelFile": "assets/models/A03023_S01_model_R03_20260720.skp",
+    "modelSha256": "REPLACE_WITH_ACTUAL_SHA256",
+    "layoutFile": "A03023_S01_layout_R03_20260720.layout",
+    "layoutSha256": "REPLACE_WITH_ACTUAL_SHA256",
+    "sketchupMajor": 2026,
+    "layoutMajor": 2026
+  },
+  "scenes": [
+    {"name": "A-101-DIM-PLAN", "sheet": "A-101", "projection": "parallel", "scale": "1:50"},
+    {"name": "A-102-FURN-PLAN", "sheet": "A-102", "projection": "parallel", "scale": "1:50"},
+    {"name": "A-301-LIVING-NORTH", "sheet": "A-301", "projection": "parallel", "scale": "1:20"}
+  ],
+  "skuSummary": {
+    "uniqueSkuCount": 4,
+    "instanceCount": 10,
+    "unboundInstanceCount": 1,
+    "items": [
+      {"sku": "SF-SOFA-2400-GR", "name": "云岛三人位沙发", "instances": 1, "rooms": ["客厅"]},
+      {"sku": "LT-PEND-600-BK", "name": "线性吊灯 / 哑黑", "instances": 2, "rooms": ["餐厅"]},
+      {"sku": "CH-DINE-02-OAK", "name": "弧背餐椅 / 白橡", "instances": 6, "rooms": ["餐厅"]},
+      {"sku": "CAB-WARD-A3", "name": "主卧通顶衣柜", "instances": 1, "rooms": ["主卧"]}
+    ]
+  },
+  "resources": [
+    {"path": "assets/references/verified-dimensions.pdf", "role": "dimension-source", "required": true, "sha256": "REPLACE_WITH_ACTUAL_SHA256"},
+    {"path": "assets/references/sku-register.csv", "role": "sku-register", "required": true, "sha256": "REPLACE_WITH_ACTUAL_SHA256"}
+  ],
+  "preflight": {
+    "modelImported": true,
+    "sceneNamesVerified": true,
+    "allSkuBound": false,
+    "blockingIssues": [
+      "1 component instance has no approved SKU",
+      "reference and associative dimensions require manual LayOut review"
+    ]
+  },
+  "manualLayOutChecklist": {
+    "referenceRefreshed": false,
+    "associativeDimensionsChecked": false,
+    "scalesAndScenesChecked": false,
+    "pdfExportClickedByUser": false,
+    "checkedBy": null,
+    "checkedAt": null
+  },
+  "limitations": [
+    "SketchUp Ruby API cannot fully automate LayOut document refresh and export.",
+    "The user must open the .layout, refresh the model reference, inspect associative dimensions, and click export.",
+    "This repository example contains no binary .layout and produces no automatic PDF."
+  ]
+}

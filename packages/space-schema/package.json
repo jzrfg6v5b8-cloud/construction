@@ -1,0 +1,41 @@
+{
+  "name": "@sharkflows/space-schema",
+  "version": "1.0.0",
+  "description": "Versioned space configuration contracts for Sharkflows",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema.json": "./schema/space-configuration.schema.json",
+    "./examples/A03023.json": "./examples/A03023.json"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "examples",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc && npm run schema",
+    "schema": "node dist/generate-json-schema.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "license": "UNLICENSED"
+}

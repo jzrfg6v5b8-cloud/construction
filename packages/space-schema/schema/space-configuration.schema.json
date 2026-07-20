@@ -1,0 +1,920 @@
+{
+  "$id": "https://schemas.sharkflows.com/space-configuration/1.0.0.json",
+  "title": "Sharkflows Space Configuration",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "$ref": "#/$defs/__schema0"
+    },
+    "projectId": {
+      "$ref": "#/$defs/__schema1"
+    },
+    "floorPlanCode": {
+      "$ref": "#/$defs/__schema2"
+    },
+    "geometryVersion": {
+      "$ref": "#/$defs/__schema3"
+    },
+    "dimensionsVerified": {
+      "$ref": "#/$defs/__schema4"
+    },
+    "ceilingHeightMm": {
+      "$ref": "#/$defs/__schema5"
+    },
+    "coordinateSystem": {
+      "$ref": "#/$defs/__schema6"
+    },
+    "walls": {
+      "$ref": "#/$defs/__schema7"
+    },
+    "openings": {
+      "$ref": "#/$defs/__schema18"
+    },
+    "windows": {
+      "$ref": "#/$defs/__schema21"
+    },
+    "doors": {
+      "$ref": "#/$defs/__schema22"
+    },
+    "fixedZones": {
+      "$ref": "#/$defs/__schema26"
+    },
+    "partitions": {
+      "$ref": "#/$defs/__schema28"
+    },
+    "rooms": {
+      "$ref": "#/$defs/__schema31"
+    },
+    "products": {
+      "$ref": "#/$defs/__schema33"
+    },
+    "materials": {
+      "$ref": "#/$defs/__schema34"
+    },
+    "cameras": {
+      "$ref": "#/$defs/__schema35"
+    },
+    "dimensionAnnotations": {
+      "$ref": "#/$defs/__schema36"
+    },
+    "outputRequirements": {
+      "$ref": "#/$defs/__schema38"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "floorPlanCode",
+    "geometryVersion",
+    "dimensionsVerified",
+    "ceilingHeightMm",
+    "coordinateSystem",
+    "walls",
+    "openings",
+    "windows",
+    "doors",
+    "fixedZones",
+    "partitions",
+    "rooms",
+    "products",
+    "materials",
+    "cameras",
+    "dimensionAnnotations",
+    "outputRequirements"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "__schema1": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema2": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema3": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema4": {
+      "type": "boolean"
+    },
+    "__schema5": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "__schema6": {
+      "type": "object",
+      "properties": {
+        "unit": {
+          "type": "string",
+          "const": "mm"
+        },
+        "upAxis": {
+          "type": "string",
+          "const": "Z"
+        },
+        "origin": {
+          "type": "string",
+          "enum": [
+            "south-west",
+            "project",
+            "model"
+          ]
+        }
+      },
+      "required": [
+        "unit",
+        "upAxis",
+        "origin"
+      ],
+      "additionalProperties": false
+    },
+    "__schema7": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/__schema8"
+      }
+    },
+    "__schema8": {
+      "type": "object",
+      "properties": {
+        "objectId": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "start": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "end": {
+          "$ref": "#/$defs/__schema10"
+        },
+        "thicknessMm": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "heightMm": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "wallType": {
+          "$ref": "#/$defs/__schema12"
+        },
+        "locked": {
+          "$ref": "#/$defs/__schema13"
+        },
+        "verificationStatus": {
+          "$ref": "#/$defs/__schema14"
+        },
+        "confidence": {
+          "$ref": "#/$defs/__schema15"
+        },
+        "reviewedBy": {
+          "$ref": "#/$defs/__schema16"
+        },
+        "reviewedAt": {
+          "$ref": "#/$defs/__schema17"
+        }
+      },
+      "required": [
+        "objectId",
+        "start",
+        "end",
+        "thicknessMm",
+        "heightMm",
+        "wallType",
+        "locked",
+        "verificationStatus"
+      ],
+      "additionalProperties": false
+    },
+    "__schema9": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "__schema10": {
+      "type": "object",
+      "properties": {
+        "xMm": {
+          "$ref": "#/$defs/__schema11"
+        },
+        "yMm": {
+          "$ref": "#/$defs/__schema11"
+        },
+        "zMm": {
+          "$ref": "#/$defs/__schema11"
+        }
+      },
+      "required": [
+        "xMm",
+        "yMm",
+        "zMm"
+      ],
+      "additionalProperties": false
+    },
+    "__schema11": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "__schema12": {
+      "type": "string",
+      "enum": [
+        "EXTERIOR",
+        "INTERIOR",
+        "LOAD_BEARING"
+      ]
+    },
+    "__schema13": {
+      "type": "boolean"
+    },
+    "__schema14": {
+      "type": "string",
+      "enum": [
+        "UNVERIFIED",
+        "LOW_CONFIDENCE",
+        "REVIEWED",
+        "VERIFIED",
+        "REJECTED"
+      ]
+    },
+    "__schema15": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "__schema16": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema17": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "__schema18": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "hostObjectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "openingType": {
+            "$ref": "#/$defs/__schema19"
+          },
+          "offsetMm": {
+            "$ref": "#/$defs/__schema20"
+          },
+          "widthMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "heightMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "sillHeightMm": {
+            "$ref": "#/$defs/__schema20"
+          },
+          "verificationStatus": {
+            "$ref": "#/$defs/__schema14"
+          },
+          "confidence": {
+            "$ref": "#/$defs/__schema15"
+          },
+          "reviewedBy": {
+            "$ref": "#/$defs/__schema16"
+          },
+          "reviewedAt": {
+            "$ref": "#/$defs/__schema17"
+          }
+        },
+        "required": [
+          "objectId",
+          "hostObjectId",
+          "openingType",
+          "offsetMm",
+          "widthMm",
+          "heightMm",
+          "sillHeightMm",
+          "verificationStatus"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema19": {
+      "type": "string",
+      "enum": [
+        "ENTRY",
+        "DOOR",
+        "WINDOW",
+        "PASSAGE",
+        "UTILITY"
+      ]
+    },
+    "__schema20": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "__schema21": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "hostObjectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "widthMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "heightMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "sillHeightMm": {
+            "$ref": "#/$defs/__schema20"
+          },
+          "offsetMm": {
+            "$ref": "#/$defs/__schema20"
+          },
+          "verificationStatus": {
+            "$ref": "#/$defs/__schema14"
+          },
+          "confidence": {
+            "$ref": "#/$defs/__schema15"
+          },
+          "reviewedBy": {
+            "$ref": "#/$defs/__schema16"
+          },
+          "reviewedAt": {
+            "$ref": "#/$defs/__schema17"
+          }
+        },
+        "required": [
+          "objectId",
+          "hostObjectId",
+          "widthMm",
+          "heightMm",
+          "sillHeightMm",
+          "offsetMm",
+          "verificationStatus"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema22": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "hostObjectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "openingObjectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "componentDefinition": {
+            "$ref": "#/$defs/__schema23"
+          },
+          "widthMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "depthMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "heightMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "offsetMm": {
+            "$ref": "#/$defs/__schema20"
+          },
+          "swing": {
+            "$ref": "#/$defs/__schema24"
+          },
+          "locked": {
+            "$ref": "#/$defs/__schema25"
+          },
+          "verificationStatus": {
+            "$ref": "#/$defs/__schema14"
+          },
+          "confidence": {
+            "$ref": "#/$defs/__schema15"
+          },
+          "reviewedBy": {
+            "$ref": "#/$defs/__schema16"
+          },
+          "reviewedAt": {
+            "$ref": "#/$defs/__schema17"
+          }
+        },
+        "required": [
+          "objectId",
+          "hostObjectId",
+          "openingObjectId",
+          "componentDefinition",
+          "widthMm",
+          "depthMm",
+          "heightMm",
+          "offsetMm",
+          "swing",
+          "locked",
+          "verificationStatus"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema23": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema24": {
+      "type": "string",
+      "enum": [
+        "LEFT",
+        "RIGHT",
+        "DOUBLE",
+        "SLIDING",
+        "NONE"
+      ]
+    },
+    "__schema25": {
+      "type": "boolean"
+    },
+    "__schema26": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "zoneType": {
+            "type": "string",
+            "enum": [
+              "KITCHEN",
+              "BATHROOM",
+              "COLUMN",
+              "SHAFT",
+              "EQUIPMENT",
+              "BUILT_IN",
+              "RESTRICTED"
+            ]
+          },
+          "roomId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "locked": {
+            "type": "boolean",
+            "const": true
+          },
+          "polygon": {
+            "minItems": 3,
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/__schema27"
+            }
+          }
+        },
+        "required": [
+          "objectId",
+          "zoneType",
+          "roomId",
+          "locked",
+          "polygon"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema27": {
+      "type": "object",
+      "properties": {
+        "xMm": {
+          "$ref": "#/$defs/__schema11"
+        },
+        "yMm": {
+          "$ref": "#/$defs/__schema11"
+        }
+      },
+      "required": [
+        "xMm",
+        "yMm"
+      ],
+      "additionalProperties": false
+    },
+    "__schema28": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "start": {
+            "$ref": "#/$defs/__schema10"
+          },
+          "end": {
+            "$ref": "#/$defs/__schema10"
+          },
+          "thicknessMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "heightMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "partitionType": {
+            "$ref": "#/$defs/__schema29"
+          },
+          "locked": {
+            "$ref": "#/$defs/__schema30"
+          },
+          "verificationStatus": {
+            "$ref": "#/$defs/__schema14"
+          },
+          "confidence": {
+            "$ref": "#/$defs/__schema15"
+          },
+          "reviewedBy": {
+            "$ref": "#/$defs/__schema16"
+          },
+          "reviewedAt": {
+            "$ref": "#/$defs/__schema17"
+          }
+        },
+        "required": [
+          "objectId",
+          "start",
+          "end",
+          "thicknessMm",
+          "heightMm",
+          "partitionType",
+          "locked",
+          "verificationStatus"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema29": {
+      "type": "string",
+      "enum": [
+        "LIGHTWEIGHT",
+        "GLASS",
+        "MOVABLE",
+        "OTHER"
+      ]
+    },
+    "__schema30": {
+      "type": "boolean"
+    },
+    "__schema31": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/__schema32"
+      }
+    },
+    "__schema32": {
+      "type": "object",
+      "properties": {
+        "objectId": {
+          "$ref": "#/$defs/__schema9"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "netWidthMm": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "netDepthMm": {
+          "$ref": "#/$defs/__schema5"
+        },
+        "floorElevationMm": {
+          "$ref": "#/$defs/__schema11"
+        }
+      },
+      "required": [
+        "objectId",
+        "code",
+        "name",
+        "netWidthMm",
+        "netDepthMm",
+        "floorElevationMm"
+      ],
+      "additionalProperties": false
+    },
+    "__schema33": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "sku": {
+            "type": "string",
+            "minLength": 1
+          },
+          "componentDefinition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "widthMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "depthMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "heightMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "xMm": {
+            "$ref": "#/$defs/__schema11"
+          },
+          "yMm": {
+            "$ref": "#/$defs/__schema11"
+          },
+          "zMm": {
+            "$ref": "#/$defs/__schema11"
+          },
+          "rotationDegrees": {
+            "type": "number"
+          },
+          "materialCode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "quantityUnit": {
+            "default": "EACH",
+            "type": "string",
+            "enum": [
+              "EACH",
+              "SET",
+              "PACK",
+              "M",
+              "M2"
+            ]
+          },
+          "roomId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "verificationStatus": {
+            "$ref": "#/$defs/__schema14"
+          }
+        },
+        "required": [
+          "objectId",
+          "sku",
+          "componentDefinition",
+          "widthMm",
+          "depthMm",
+          "heightMm",
+          "xMm",
+          "yMm",
+          "zMm",
+          "rotationDegrees",
+          "materialCode",
+          "quantity",
+          "quantityUnit",
+          "roomId",
+          "verificationStatus"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema34": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "materialCode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "colorHex": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
+          },
+          "textureAssetId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "realWidthMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "realHeightMm": {
+            "$ref": "#/$defs/__schema5"
+          }
+        },
+        "required": [
+          "materialCode",
+          "name",
+          "colorHex",
+          "textureAssetId",
+          "realWidthMm",
+          "realHeightMm"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema35": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "sceneCode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projection": {
+            "type": "string",
+            "enum": [
+              "ORTHOGRAPHIC",
+              "PERSPECTIVE"
+            ]
+          },
+          "eye": {
+            "$ref": "#/$defs/__schema10"
+          },
+          "target": {
+            "$ref": "#/$defs/__schema10"
+          },
+          "up": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              },
+              "z": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "objectId",
+          "sceneCode",
+          "projection",
+          "eye",
+          "target",
+          "up"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema36": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "$ref": "#/$defs/__schema9"
+          },
+          "dimensionType": {
+            "$ref": "#/$defs/__schema37"
+          },
+          "valueMm": {
+            "$ref": "#/$defs/__schema5"
+          },
+          "start": {
+            "$ref": "#/$defs/__schema10"
+          },
+          "end": {
+            "$ref": "#/$defs/__schema10"
+          },
+          "verificationStatus": {
+            "$ref": "#/$defs/__schema14"
+          },
+          "confidence": {
+            "$ref": "#/$defs/__schema15"
+          },
+          "reviewedBy": {
+            "$ref": "#/$defs/__schema16"
+          },
+          "reviewedAt": {
+            "$ref": "#/$defs/__schema17"
+          }
+        },
+        "required": [
+          "objectId",
+          "dimensionType",
+          "valueMm",
+          "start",
+          "end",
+          "verificationStatus"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "__schema37": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema38": {
+      "type": "object",
+      "properties": {
+        "scenes": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema39"
+          }
+        },
+        "formats": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema40"
+          }
+        },
+        "layoutTemplateCode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "layoutScales": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "requireSkuReconciliation": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scenes",
+        "formats",
+        "layoutScales",
+        "requireSkuReconciliation"
+      ],
+      "additionalProperties": false
+    },
+    "__schema39": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema40": {
+      "type": "string",
+      "enum": [
+        "SKP",
+        "PNG",
+        "PDF",
+        "GLB",
+        "GLTF",
+        "OBJ",
+        "IFC",
+        "COMPONENT_STATS_JSON",
+        "LAYOUT_HANDOFF_JSON"
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "com.jiancai.space",
+  "name": "建材商空间导入器",
+  "version": "1.0.0",
+  "entrypoint": "jiancai_space.rb",
+  "minimumSketchUpVersion": "2021",
+  "rubyApi": true,
+  "schemaVersion": 1,
+  "capabilities": [
+    "local-json-import",
+    "loopback-token-pull",
+    "stable-uuid-upsert",
+    "parametric-placeholder-components",
+    "scene-and-skp-export",
+    "layout-handoff-manifest"
+  ]
+}

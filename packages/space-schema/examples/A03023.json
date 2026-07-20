@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectId": "A03023",
+  "floorPlanCode": "A03023-2BR",
+  "geometryVersion": "gv-0003",
+  "dimensionsVerified": true,
+  "ceilingHeightMm": 2800,
+  "coordinateSystem": { "unit": "mm", "upAxis": "Z", "origin": "south-west" },
+  "walls": [
+    {
+      "objectId": "053ba812-e6d1-46d1-a0c1-f27459080501",
+      "start": { "xMm": 0, "yMm": 0, "zMm": 0 },
+      "end": { "xMm": 6400, "yMm": 0, "zMm": 0 },
+      "thicknessMm": 200,
+      "heightMm": 2800,
+      "wallType": "EXTERIOR",
+      "locked": true,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    },
+    {
+      "objectId": "053ba812-e6d1-46d1-a0c1-f27459080502",
+      "start": { "xMm": 6400, "yMm": 0, "zMm": 0 },
+      "end": { "xMm": 6400, "yMm": 7000, "zMm": 0 },
+      "thicknessMm": 200,
+      "heightMm": 2800,
+      "wallType": "EXTERIOR",
+      "locked": true,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    },
+    {
+      "objectId": "053ba812-e6d1-46d1-a0c1-f27459080503",
+      "start": { "xMm": 6400, "yMm": 7000, "zMm": 0 },
+      "end": { "xMm": 0, "yMm": 7000, "zMm": 0 },
+      "thicknessMm": 200,
+      "heightMm": 2800,
+      "wallType": "EXTERIOR",
+      "locked": true,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    },
+    {
+      "objectId": "053ba812-e6d1-46d1-a0c1-f27459080504",
+      "start": { "xMm": 0, "yMm": 7000, "zMm": 0 },
+      "end": { "xMm": 0, "yMm": 0, "zMm": 0 },
+      "thicknessMm": 200,
+      "heightMm": 2800,
+      "wallType": "EXTERIOR",
+      "locked": true,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    }
+  ],
+  "openings": [
+    {
+      "objectId": "bd9aa66d-93bd-49ca-9f7e-b40366db6301",
+      "hostObjectId": "053ba812-e6d1-46d1-a0c1-f27459080501",
+      "openingType": "ENTRY",
+      "offsetMm": 800,
+      "widthMm": 900,
+      "heightMm": 2100,
+      "sillHeightMm": 0,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    }
+  ],
+  "windows": [
+    {
+      "objectId": "fc8f0081-d4d8-490c-9c22-1751d4992101",
+      "hostObjectId": "053ba812-e6d1-46d1-a0c1-f27459080503",
+      "widthMm": 1800,
+      "heightMm": 1200,
+      "sillHeightMm": 900,
+      "offsetMm": 700,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    }
+  ],
+  "doors": [
+    {
+      "objectId": "c2c9d96d-fdc5-4598-b33e-f370eb6ba101",
+      "hostObjectId": "053ba812-e6d1-46d1-a0c1-f27459080501",
+      "openingObjectId": "bd9aa66d-93bd-49ca-9f7e-b40366db6301",
+      "componentDefinition": "door-sliding",
+      "widthMm": 900,
+      "depthMm": 100,
+      "heightMm": 2100,
+      "offsetMm": 800,
+      "swing": "RIGHT",
+      "locked": true,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    }
+  ],
+  "fixedZones": [
+    {
+      "objectId": "ae3fedb7-8964-4105-b94e-c1f6e0996c01",
+      "zoneType": "KITCHEN",
+      "roomId": "e06fb990-2230-479e-9b68-e7f4fe461101",
+      "locked": true,
+      "polygon": [
+        { "xMm": 200, "yMm": 200 },
+        { "xMm": 1800, "yMm": 200 },
+        { "xMm": 1800, "yMm": 1600 },
+        { "xMm": 200, "yMm": 1600 }
+      ]
+    }
+  ],
+  "partitions": [
+    {
+      "objectId": "885c0765-1ac6-4ee6-b48b-04bbb1f86a01",
+      "start": { "xMm": 3200, "yMm": 3500, "zMm": 0 },
+      "end": { "xMm": 3200, "yMm": 7000, "zMm": 0 },
+      "thicknessMm": 100,
+      "heightMm": 2800,
+      "partitionType": "LIGHTWEIGHT",
+      "locked": false,
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    }
+  ],
+  "rooms": [
+    {
+      "objectId": "e06fb990-2230-479e-9b68-e7f4fe461101",
+      "code": "LIVING",
+      "name": "客厅",
+      "netWidthMm": 6000,
+      "netDepthMm": 3100,
+      "floorElevationMm": 0
+    },
+    {
+      "objectId": "e06fb990-2230-479e-9b68-e7f4fe461102",
+      "code": "MASTER_BEDROOM",
+      "name": "主卧",
+      "netWidthMm": 3000,
+      "netDepthMm": 3300,
+      "floorElevationMm": 0
+    },
+    {
+      "objectId": "e06fb990-2230-479e-9b68-e7f4fe461103",
+      "code": "SECOND_BEDROOM",
+      "name": "次卧",
+      "netWidthMm": 3000,
+      "netDepthMm": 3300,
+      "floorElevationMm": 0
+    }
+  ],
+  "products": [
+    {
+      "objectId": "6d727319-9583-45a4-a04b-f0791da70101",
+      "sku": "SF-SOFA-2200",
+      "componentDefinition": "sofa",
+      "widthMm": 2200,
+      "depthMm": 850,
+      "heightMm": 780,
+      "xMm": 700,
+      "yMm": 2200,
+      "zMm": 0,
+      "rotationDegrees": 0,
+      "materialCode": "FABRIC-GREIGE-01",
+      "quantity": 1,
+      "quantityUnit": "EACH",
+      "roomId": "e06fb990-2230-479e-9b68-e7f4fe461101",
+      "verificationStatus": "VERIFIED"
+    }
+  ],
+  "materials": [
+    {
+      "materialCode": "FABRIC-GREIGE-01",
+      "name": "灰米色布艺",
+      "colorHex": "#A99F91",
+      "textureAssetId": "asset-fabric-01",
+      "realWidthMm": 1000,
+      "realHeightMm": 1000
+    }
+  ],
+  "cameras": [
+    {
+      "objectId": "b0d44896-20da-4389-9d36-143fc8c02a01",
+      "sceneCode": "PLAN",
+      "projection": "ORTHOGRAPHIC",
+      "eye": { "xMm": 3200, "yMm": 3500, "zMm": 10000 },
+      "target": { "xMm": 3200, "yMm": 3500, "zMm": 0 },
+      "up": { "x": 0, "y": 1, "z": 0 }
+    }
+  ],
+  "dimensionAnnotations": [
+    {
+      "objectId": "555be7b3-c67a-49bf-9f25-58bfe13b9a01",
+      "dimensionType": "OVERALL_WIDTH",
+      "valueMm": 6400,
+      "start": { "xMm": 0, "yMm": 0, "zMm": 0 },
+      "end": { "xMm": 6400, "yMm": 0, "zMm": 0 },
+      "verificationStatus": "VERIFIED",
+      "confidence": 1,
+      "reviewedBy": "designer-demo"
+    }
+  ],
+  "outputRequirements": {
+    "scenes": ["PLAN", "DIMENSIONED_PLAN", "AXONOMETRIC"],
+    "formats": ["SKP", "PNG", "COMPONENT_STATS_JSON", "LAYOUT_HANDOFF_JSON"],
+    "layoutTemplateCode": "SHARKFLOWS-A3-V1",
+    "layoutScales": { "plan": "1:50", "elevations": "1:30" },
+    "requireSkuReconciliation": true
+  }
+}

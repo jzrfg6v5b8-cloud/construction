@@ -1,0 +1,48 @@
+# 落地配置清单
+
+按优先级配置。本地开发多数可留空。
+
+## 最短跑通（不用 SketchUp）
+
+1. 打开 http://localhost:3000/projects  
+2. 填项目名 → **创建并进入**（会自动 VERIFIED 户型 + 8 张演示场景图）  
+3. 到 **方案输出** → **导出 DRAFT** 或 **一键演示 PDF**  
+
+已有项目点列表里的 **一键跑通** 即可。
+
+```bash
+cd /Users/lihuaiyuan/Downloads/空调/建材商
+cp apps/web/.env.example apps/web/.env.local   # 若还没有
+npm install
+npm run build -w @sharkflows/processing-queue
+npm run dev
+```
+
+
+## 按需环境变量
+
+| 变量 | 作用 |
+|------|------|
+| `NOTO_CJK_FONT_PATH` | PDF 中文字体；不设则尝试系统字体 |
+| `DATABASE_PATH` | SQLite 路径，默认 `.data/sharkflows.sqlite` |
+| `RENDERS_PATH` | 场景 PNG 目录，默认 `.data/renders` |
+| `SKETCHUP_RESULT_WEBHOOK_SECRET` | 生产 webhook 鉴权（`POST .../sketchup/results`） |
+| `VISION_WORKER_URL` | 默认 `http://127.0.0.1:8091`；另开 `npm run dev:vision` |
+| `AUTH_SECRET` | 会话签名（上线建议设置） |
+| `SIGNED_URL_SECRET` | 私有对象签名 URL |
+| `REDIS_URL` | 有则用 BullMQ，无则内存队列 |
+| `STRIPE_*` | 计费；不配则演示安全降级 |
+| `GOOGLE_CLIENT_*` | Google 登录可选 |
+| `OBJECT_STORAGE_*` / `S3_*` | 对象存储；默认本地 `.data/objects` |
+
+## SketchUp / LayOut 本机
+
+1. `npm run dev:bridge`，把 Token 填到 `/settings/sketchup`
+2. 安装 `apps/sketchup-extension` 到 SketchUp Plugins（见 `docs/sketchup-integration/`）
+3. LayOut：打开公司 `.layout` 模板 → 刷新 SKP → 导出 PDF（网页清单只做勾选记录）
+
+## 诚实边界
+
+- **照片级** = SketchUp/外部渲染器出的 PNG，不是网页 3D 截图。
+- **LayOut** = 半自动交接 + 三步人工，不是一键全自动 PDF。
+- **户型编辑器** = 可交付的墙体 MVP，不是 AutoCAD。
