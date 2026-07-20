@@ -11,8 +11,12 @@ type FloorPlanRow = {
   updated_at: string;
 };
 
+function cleanEnv(value: string | undefined) {
+  return (value ?? "").trim().replace(/^["']|["']$/g, "");
+}
+
 function supabaseConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL) && cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY));
 }
 
 /** Prefer durable Supabase on Vercel/serverless; local SQLite otherwise. */
@@ -23,14 +27,38 @@ export function useCloudDb() {
   );
 }
 
-function restBase() {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
-  // Allow either project origin or a URL that already ends with /rest/v1
-  return raw.endsWith("/rest/v1") ? raw : `${raw}/rest/v1`;
+function supabaseOrigin() {
+  const raw = cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  if (!raw) throw new Error("MISSING_SUPABASE_URL");
+  // Reject postgres URLs / placeholders that break fetch() with "pattern" errors.
+  if (raw === "[SENSITIVE]" || raw.toLowerCase().startsWith("postgres")) {
+    throw new Error("INVALID_SUPABASE_URL_USE_HTTPS_PROJECT_URL");
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.endsWith("/rest/v1") ? raw.slice(0, -"/rest/v1".length) : raw);
+  } catch {
+    throw new Error(`INVALID_SUPABASE_URL:${raw.slice(0, 32)}`);
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error(`INVALID_SUPABASE_URL_PROTOCOL:${parsed.protocol}`);
+  }
+  return parsed.origin;
 }
 
-function restHeaders(extra?: HeadersInit): HeadersInit {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+function serviceRoleKey() {
+  const key = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  if (!key || key === "[SENSITIVE]") throw new Error("MISSING_SUPABASE_SERVICE_ROLE_KEY");
+  if (/[\r\n\t]/.test(key)) throw new Error("SUPABASE_SERVICE_ROLE_KEY_HAS_WHITESPACE");
+  return key;
+}
+
+function restBase() {
+  return `${supabaseOrigin()}/rest/v1`;
+}
+
+function restHeaders(extra?: Record<string, string>): Record<string, string> {
+  const key = serviceRoleKey();
   return {
     apikey: key,
     Authorization: `Bearer ${key}`,
@@ -42,7 +70,7 @@ function restHeaders(extra?: HeadersInit): HeadersInit {
 async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${restBase()}/${path}`, {
     ...init,
-    headers: restHeaders(init?.headers),
+    headers: restHeaders(init?.headers as Record<string, string> | undefined),
     cache: "no-store",
   });
   if (!response.ok) {
@@ -209,9 +237,7 @@ export type CloudAssetRow = {
 };
 
 function storageBase() {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
-  const origin = raw.endsWith("/rest/v1") ? raw.slice(0, -"/rest/v1".length) : raw;
-  return `${origin}/storage/v1`;
+  return `${supabaseOrigin()}/storage/v1`;
 }
 
 export async function cloudUploadObject(input: {
@@ -220,13 +246,14 @@ export async function cloudUploadObject(input: {
   contentType: string;
   upsert?: boolean;
 }) {
+  const key = serviceRoleKey();
   const response = await fetch(`${storageBase()}/object/project-assets/${input.key}`, {
     method: "POST",
     headers: {
-      ...restHeaders({
-        "Content-Type": input.contentType,
-        "x-upsert": input.upsert ? "true" : "false",
-      }),
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": input.contentType,
+      "x-upsert": input.upsert ? "true" : "false",
     },
     body: new Uint8Array(input.body),
     cache: "no-store",
