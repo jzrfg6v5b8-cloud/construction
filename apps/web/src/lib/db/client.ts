@@ -17,7 +17,12 @@ const globalState = globalThis as typeof globalThis & {
 };
 
 export function resolveDatabasePath(configured = process.env.DATABASE_PATH): string {
-  const relative = configured ?? ".data/sharkflows.sqlite";
+  // Vercel serverless FS is read-only except /tmp; prefer /tmp unless explicitly configured.
+  const fallback =
+    process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+      ? "/tmp/sharkflows.sqlite"
+      : ".data/sharkflows.sqlite";
+  const relative = configured ?? fallback;
   return path.isAbsolute(relative) ? relative : path.resolve(process.cwd(), relative);
 }
 

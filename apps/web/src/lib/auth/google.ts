@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { getDb } from "@/lib/db/client";
 import { createSession, type AuthUser } from "@/lib/auth/session";
 
@@ -71,8 +71,83 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function sqlite() {
-  return getDb().sqlite;
+function stableGoogleUserId(googleId: string) {
+  const digest = createHash("sha256").update(`google:${googleId}`).digest("hex").slice(0, 24);
+  return `usr_${digest}`;
+}
+
+function upsertGoogleUserBestEffort(profile: {
+  id: string;
+  email: string;
+  name?: string;
+  accessToken: string;
+}): AuthUser {
+  const email = profile.email.toLowerCase();
+  const fallback: AuthUser = {
+    id: stableGoogleUserId(profile.id),
+    email,
+    name: profile.name ?? null,
+    plan: "free",
+  };
+
+  try {
+    const db = getDb().sqlite;
+    const linked = db
+      .prepare(
+        `SELECT u.id, u.email, u.name, u.plan
+         FROM accounts a
+         JOIN users u ON u.id = a.user_id
+         WHERE a.provider = 'google' AND a.provider_account_id = ?`,
+      )
+      .get(profile.id) as AuthUser | undefined;
+
+    let user = linked;
+    if (!user) {
+      const byEmail = db
+        .prepare(`SELECT id, email, name, plan FROM users WHERE email = ?`)
+        .get(email) as AuthUser | undefined;
+
+      if (byEmail) {
+        user = byEmail;
+      } else {
+        const id = fallback.id;
+        const stamp = nowIso();
+        db.prepare(
+          `INSERT INTO users (id, email, name, password_hash, plan, created_at, updated_at)
+           VALUES (?, ?, ?, NULL, 'free', ?, ?)`,
+        ).run(id, email, profile.name ?? null, stamp, stamp);
+        user = { id, email, name: profile.name ?? null, plan: "free" };
+      }
+
+      const existingAccount = db
+        .prepare(`SELECT id FROM accounts WHERE provider = 'google' AND provider_account_id = ?`)
+        .get(profile.id) as { id: string } | undefined;
+
+      if (existingAccount) {
+        db.prepare(`UPDATE accounts SET user_id = ?, access_token = ? WHERE id = ?`).run(
+          user.id,
+          profile.accessToken,
+          existingAccount.id,
+        );
+      } else {
+        db.prepare(
+          `INSERT INTO accounts (id, user_id, provider, provider_account_id, access_token, refresh_token, created_at)
+           VALUES (?, ?, 'google', ?, ?, NULL, ?)`,
+        ).run(
+          `acc_${randomBytes(12).toString("hex")}`,
+          user.id,
+          profile.id,
+          profile.accessToken,
+          nowIso(),
+        );
+      }
+    }
+
+    return user;
+  } catch {
+    // Serverless / read-only FS: still authenticate via signed session cookie.
+    return fallback;
+  }
 }
 
 export async function completeGoogleOAuth(input: {
@@ -110,52 +185,13 @@ export async function completeGoogleOAuth(input: {
     throw new Error("Unable to load Google profile");
   }
 
-  const db = sqlite();
-  const linked = db
-    .prepare(
-      `SELECT u.id, u.email, u.name, u.plan
-       FROM accounts a
-       JOIN users u ON u.id = a.user_id
-       WHERE a.provider = 'google' AND a.provider_account_id = ?`,
-    )
-    .get(profile.id) as AuthUser | undefined;
+  const user = upsertGoogleUserBestEffort({
+    id: profile.id,
+    email: profile.email,
+    name: profile.name,
+    accessToken: tokenJson.access_token,
+  });
 
-  let user = linked;
-  if (!user) {
-    const byEmail = db
-      .prepare(`SELECT id, email, name, plan FROM users WHERE email = ?`)
-      .get(profile.email.toLowerCase()) as AuthUser | undefined;
-
-    if (byEmail) {
-      user = byEmail;
-    } else {
-      const id = `usr_${randomBytes(12).toString("hex")}`;
-      const stamp = nowIso();
-      db.prepare(
-        `INSERT INTO users (id, email, name, password_hash, plan, created_at, updated_at)
-         VALUES (?, ?, ?, NULL, 'free', ?, ?)`,
-      ).run(id, profile.email.toLowerCase(), profile.name ?? null, stamp, stamp);
-      user = { id, email: profile.email.toLowerCase(), name: profile.name ?? null, plan: "free" };
-    }
-
-    const existingAccount = db
-      .prepare(`SELECT id FROM accounts WHERE provider = 'google' AND provider_account_id = ?`)
-      .get(profile.id) as { id: string } | undefined;
-
-    if (existingAccount) {
-      db.prepare(`UPDATE accounts SET user_id = ?, access_token = ? WHERE id = ?`).run(
-        user.id,
-        tokenJson.access_token,
-        existingAccount.id,
-      );
-    } else {
-      db.prepare(
-        `INSERT INTO accounts (id, user_id, provider, provider_account_id, access_token, refresh_token, created_at)
-         VALUES (?, ?, 'google', ?, ?, NULL, ?)`,
-      ).run(`acc_${randomBytes(12).toString("hex")}`, user.id, profile.id, tokenJson.access_token, nowIso());
-    }
-  }
-
-  const session = createSession(user.id);
+  const session = createSession(user);
   return { user, token: session.token, expiresAt: session.expiresAt };
 }

@@ -1,5 +1,6 @@
 import { clearSessionCookieOptions, destroySession, SESSION_COOKIE } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 function wantsJson(request: Request) {
   const accept = request.headers.get("accept") ?? "";
@@ -16,12 +17,16 @@ async function clear(request: Request) {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   destroySession(token);
-  jar.set(SESSION_COOKIE, "", clearSessionCookieOptions());
 
   if (wantsJson(request)) {
-    return Response.json({ ok: true });
+    const response = NextResponse.json({ ok: true });
+    response.cookies.set(SESSION_COOKIE, "", clearSessionCookieOptions());
+    return response;
   }
-  return Response.redirect(`${trustedOrigin(request)}/auth`, 303);
+
+  const response = NextResponse.redirect(new URL("/auth", trustedOrigin(request)), 303);
+  response.cookies.set(SESSION_COOKIE, "", clearSessionCookieOptions());
+  return response;
 }
 
 export async function POST(request: Request) {

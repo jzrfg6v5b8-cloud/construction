@@ -4,12 +4,16 @@ import {
   sessionCookieOptions,
   verifyOAuthState,
 } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 function trustedOrigin(request: Request) {
   const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL;
   if (configured) return new URL(configured).origin;
   return new URL(request.url).origin;
+}
+
+function redirect(origin: string, path: string) {
+  return NextResponse.redirect(new URL(path, origin), 303);
 }
 
 export async function GET(request: Request) {
@@ -20,19 +24,19 @@ export async function GET(request: Request) {
   const oauthError = url.searchParams.get("error");
 
   if (oauthError) {
-    return Response.redirect(`${origin}/auth?error=${encodeURIComponent(oauthError)}`, 303);
+    return redirect(origin, `/auth?error=${encodeURIComponent(oauthError)}`);
   }
   if (!code || !verifyOAuthState(state)) {
-    return Response.redirect(`${origin}/auth?error=${encodeURIComponent("Invalid OAuth state")}`, 303);
+    return redirect(origin, `/auth?error=${encodeURIComponent("Invalid OAuth state")}`);
   }
 
   try {
     const result = await completeGoogleOAuth({ code, origin });
-    const jar = await cookies();
-    jar.set(SESSION_COOKIE, result.token, sessionCookieOptions(result.expiresAt));
-    return Response.redirect(`${origin}/pricing`, 303);
+    const response = redirect(origin, "/projects");
+    response.cookies.set(SESSION_COOKIE, result.token, sessionCookieOptions(result.expiresAt));
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google sign-in failed";
-    return Response.redirect(`${origin}/auth?error=${encodeURIComponent(message)}`, 303);
+    return redirect(origin, `/auth?error=${encodeURIComponent(message)}`);
   }
 }

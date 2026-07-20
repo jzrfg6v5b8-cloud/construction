@@ -52,7 +52,7 @@ export function registerWithEmail(input: {
      VALUES (?, ?, ?, ?, 'free', ?, ?)`,
   ).run(id, email, input.name?.trim() || null, hashPassword(input.password), stamp, stamp);
 
-  const session = createSession(id);
+  const session = createSession({ id, email, name: input.name?.trim() || null, plan: "free" });
   return {
     user: { id, email, name: input.name?.trim() || null, plan: "free" },
     token: session.token,
@@ -77,7 +77,12 @@ export function loginWithEmail(input: {
     throw new AuthError("Invalid email or password", 401);
   }
 
-  const session = createSession(row.id);
+  const session = createSession({
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    plan: row.plan,
+  });
   return {
     user: { id: row.id, email: row.email, name: row.name, plan: row.plan },
     token: session.token,

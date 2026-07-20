@@ -3,13 +3,19 @@
 import { useState, type FormEvent } from "react";
 import { useLocale } from "@/lib/i18n/runtime";
 
-export function AuthForm({ googleConfigured }: { googleConfigured: boolean }) {
+export function AuthForm({
+  googleConfigured,
+  initialError,
+}: {
+  googleConfigured: boolean;
+  initialError?: string | null;
+}) {
   const { messages } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [ok, setOk] = useState<string | null>(null);
 
   async function submit(mode: "login" | "register") {
@@ -28,7 +34,7 @@ export function AuthForm({ googleConfigured }: { googleConfigured: boolean }) {
         return;
       }
       setOk(mode === "login" ? "signed-in" : "registered");
-      window.location.href = "/";
+      window.location.href = "/projects";
     } catch {
       setError("NETWORK_ERROR");
     } finally {

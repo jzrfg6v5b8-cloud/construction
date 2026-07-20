@@ -1,5 +1,5 @@
 import { AuthError, loginWithEmail, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 async function readBody(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
@@ -27,21 +27,24 @@ export async function POST(request: Request) {
     const password = typeof body.password === "string" ? body.password : "";
 
     const result = loginWithEmail({ email, password });
-    const jar = await cookies();
-    jar.set(SESSION_COOKIE, result.token, sessionCookieOptions(result.expiresAt));
 
     if (wantsJson(request)) {
-      return Response.json({ user: result.user });
+      const response = NextResponse.json({ user: result.user });
+      response.cookies.set(SESSION_COOKIE, result.token, sessionCookieOptions(result.expiresAt));
+      return response;
     }
-    return Response.redirect(`${trustedOrigin(request)}/pricing`, 303);
+
+    const response = NextResponse.redirect(new URL("/projects", trustedOrigin(request)), 303);
+    response.cookies.set(SESSION_COOKIE, result.token, sessionCookieOptions(result.expiresAt));
+    return response;
   } catch (error) {
     const status = error instanceof AuthError ? error.status : 500;
     const message = error instanceof Error ? error.message : "Login failed";
     if (wantsJson(request)) {
-      return Response.json({ error: message }, { status });
+      return NextResponse.json({ error: message }, { status });
     }
-    return Response.redirect(
-      `${trustedOrigin(request)}/auth?error=${encodeURIComponent(message)}`,
+    return NextResponse.redirect(
+      new URL(`/auth?error=${encodeURIComponent(message)}`, trustedOrigin(request)),
       303,
     );
   }
