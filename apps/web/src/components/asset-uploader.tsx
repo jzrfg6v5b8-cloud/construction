@@ -35,11 +35,30 @@ export function AssetUploader({
     Array.from(files).forEach((file) => body.append("files", file));
     try {
       const response = await fetch(`/api/projects/${projectId}/assets`, { method: "POST", body });
-      const payload = (await response.json()) as { results?: UploadResult[] };
+      const payload = (await response.json().catch(() => ({}))) as {
+        results?: UploadResult[];
+        error?: string;
+      };
+      if (!response.ok && !payload.results?.length) {
+        setResults(
+          Array.from(files).map((file) => ({
+            filename: file.name,
+            ok: false,
+            error: payload.error ?? `HTTP_${response.status}`,
+          })),
+        );
+        return;
+      }
       setResults(payload.results ?? []);
       if (payload.results?.some((item) => item.ok)) onUploaded?.();
-    } catch {
-      setResults(Array.from(files).map((file) => ({ filename: file.name, ok: false, error: "NETWORK_ERROR" })));
+    } catch (error) {
+      setResults(
+        Array.from(files).map((file) => ({
+          filename: file.name,
+          ok: false,
+          error: error instanceof Error ? error.message : "NETWORK_ERROR",
+        })),
+      );
     } finally {
       setUploading(false);
       if (input.current) input.current.value = "";

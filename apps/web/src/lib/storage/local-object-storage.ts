@@ -3,6 +3,9 @@ import path from "node:path";
 import type { ObjectPutResult, ObjectStorage } from "./object-storage";
 
 function storageRoot(configured = process.env.OBJECT_STORAGE_PATH ?? process.env.PRIVATE_STORAGE_PATH): string {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return "/tmp/sharkflows-objects";
+  }
   const relative = configured ?? ".data/objects";
   return path.isAbsolute(relative) ? relative : path.resolve(process.cwd(), relative);
 }

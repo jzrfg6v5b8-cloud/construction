@@ -24,7 +24,9 @@ export function useCloudDb() {
 }
 
 function restBase() {
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "")}/rest/v1`;
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
+  // Allow either project origin or a URL that already ends with /rest/v1
+  return raw.endsWith("/rest/v1") ? raw : `${raw}/rest/v1`;
 }
 
 function restHeaders(extra?: HeadersInit): HeadersInit {
@@ -184,6 +186,69 @@ export async function cloudSaveFloorPlan(row: FloorPlanRow) {
       payload: row,
       updated_at: row.updated_at,
     }),
+  });
+  return row;
+}
+
+export type CloudAssetRow = {
+  id: string;
+  project_id: string;
+  user_id: string | null;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  width_px: number | null;
+  height_px: number | null;
+  sha256: string;
+  storage_key: string;
+  thumbnail_key: string | null;
+  processing_status: string;
+  asset_type: string;
+  created_at: string;
+  updated_at: string;
+};
+
+function storageBase() {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
+  const origin = raw.endsWith("/rest/v1") ? raw.slice(0, -"/rest/v1".length) : raw;
+  return `${origin}/storage/v1`;
+}
+
+export async function cloudUploadObject(input: {
+  key: string;
+  body: Buffer;
+  contentType: string;
+  upsert?: boolean;
+}) {
+  const response = await fetch(`${storageBase()}/object/project-assets/${input.key}`, {
+    method: "POST",
+    headers: {
+      ...restHeaders({
+        "Content-Type": input.contentType,
+        "x-upsert": input.upsert ? "true" : "false",
+      }),
+    },
+    body: new Uint8Array(input.body),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`STORAGE_${response.status}:${text.slice(0, 200)}`);
+  }
+}
+
+export async function cloudListAssets(projectId: string): Promise<CloudAssetRow[]> {
+  const rows = await rest<CloudAssetRow[]>(
+    `sf_assets?project_id=eq.${encodeURIComponent(projectId)}&order=created_at.desc&select=*`,
+  );
+  return rows ?? [];
+}
+
+export async function cloudUpsertAsset(row: CloudAssetRow) {
+  await rest("sf_assets?on_conflict=id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(row),
   });
   return row;
 }

@@ -29,8 +29,11 @@ export type StoredAsset = {
 };
 
 function privateRoot() {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return "/tmp/sharkflows-private";
+  }
   const configured = process.env.PRIVATE_STORAGE_PATH ?? ".data/private";
-  return path.resolve(process.cwd(), configured);
+  return path.isAbsolute(configured) ? configured : path.resolve(process.cwd(), configured);
 }
 
 function safeName(value: string) {
