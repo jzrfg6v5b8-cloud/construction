@@ -126,7 +126,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           let bytes = Buffer.from(await file.arrayBuffer());
           let mimeType = sniffed || "application/octet-stream";
           const scaled = await maybeDownscale(bytes, mimeType);
-          bytes = scaled.bytes;
+          bytes = Buffer.from(scaled.bytes);
           mimeType = scaled.mimeType;
 
           const sha256 = createHash("sha256").update(bytes).digest("hex");
