@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
-import sharp from "sharp";
 import { getDb } from "@/lib/db/client";
 import {
   cloudListAssets,
@@ -9,20 +8,20 @@ import {
   useCloudDb,
 } from "@/lib/db/cloud-store";
 import { listAssets, touchProjectAsync } from "@/lib/db/repositories";
-import { ensureProcessingWorker } from "@/lib/queue/processing";
 import { createObjectStorage } from "@/lib/storage";
-import { storeAssetFile } from "@/lib/storage/local-private-storage";
 import { accessErrorResponse, requireOwnedProject } from "@/lib/auth/project-access";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function objectKeyForAsset(projectId: string, filename: string) {
   const safe = filename.normalize("NFKC").replace(/[^\p{L}\p{N}._-]+/gu, "_").slice(0, 80);
   return `projects/${projectId}/originals/${randomUUID()}_${safe}`;
 }
 
-const MAX_FILES = 20;
-const MAX_FILE_BYTES = 30 * 1024 * 1024;
+const MAX_FILES = 10;
+/** Vercel serverless request body hard limit is ~4.5MB; stay under it. */
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -49,10 +48,29 @@ function sniffMime(file: File): string {
 async function imageMeta(bytes: Buffer, mimeType: string) {
   if (!mimeType.startsWith("image/")) return { widthPx: null as number | null, heightPx: null as number | null };
   try {
+    const sharp = (await import("sharp")).default;
     const info = await sharp(bytes, { failOn: "none" }).metadata();
     return { widthPx: info.width ?? null, heightPx: info.height ?? null };
   } catch {
     return { widthPx: null, heightPx: null };
+  }
+}
+
+/** Compress large images so they fit under the Vercel body limit after re-upload paths. */
+async function maybeDownscale(bytes: Buffer, mimeType: string): Promise<{ bytes: Buffer; mimeType: string }> {
+  if (!mimeType.startsWith("image/") || bytes.byteLength <= MAX_FILE_BYTES) {
+    return { bytes, mimeType };
+  }
+  try {
+    const sharp = (await import("sharp")).default;
+    const out = await sharp(bytes, { failOn: "none" })
+      .rotate()
+      .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 82 })
+      .toBuffer();
+    return { bytes: out, mimeType: "image/jpeg" };
+  } catch {
+    return { bytes, mimeType };
   }
 }
 
@@ -61,41 +79,59 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try {
     if (!useCloudDb()) getDb();
     const { user } = await requireOwnedProject(projectId);
-    const form = await request.formData();
+
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: "BODY_TOO_LARGE_OR_INVALID",
+          hint: "单张图片请小于 4MB（Vercel 限制）。可先压缩再上传。",
+          detail: error instanceof Error ? error.message : "formData_failed",
+        },
+        { status: 413 },
+      );
+    }
+
     const files = form.getAll("files").filter((value): value is File => value instanceof File);
 
     if (!files.length) {
       return NextResponse.json({ error: "至少需要一个文件", code: "FILES_REQUIRED" }, { status: 400 });
     }
     if (files.length > MAX_FILES) return NextResponse.json({ error: "TOO_MANY_FILES" }, { status: 413 });
-    const invalid = files.find((file) => {
-      const mime = sniffMime(file);
-      return !ALLOWED_MIME_TYPES.has(mime) || file.size <= 0 || file.size > MAX_FILE_BYTES;
-    });
-    if (invalid) {
-      return NextResponse.json(
-        {
-          error: "INVALID_FILE",
-          filename: invalid.name,
-          hint: sniffMime(invalid) || "unknown_type",
-        },
-        { status: 415 },
-      );
-    }
 
     const stamp = new Date().toISOString();
     const cloud = useCloudDb();
     const storage = cloud ? null : createObjectStorage();
-    const queue = cloud ? null : await ensureProcessingWorker().catch(() => null);
 
     const results = await Promise.all(
       files.map(async (file) => {
         try {
-          const bytes = Buffer.from(await file.arrayBuffer());
+          const sniffed = sniffMime(file);
+          if (!ALLOWED_MIME_TYPES.has(sniffed) && !sniffed.startsWith("image/")) {
+            return { filename: file.name, ok: false as const, error: `UNSUPPORTED_TYPE:${sniffed || "unknown"}` };
+          }
+          if (file.size <= 0) {
+            return { filename: file.name, ok: false as const, error: "EMPTY_FILE" };
+          }
+          if (file.size > MAX_FILE_BYTES) {
+            return {
+              filename: file.name,
+              ok: false as const,
+              error: `FILE_TOO_LARGE:${Math.round(file.size / 1024 / 1024)}MB_MAX_4MB`,
+            };
+          }
+
+          let bytes = Buffer.from(await file.arrayBuffer());
+          let mimeType = sniffed || "application/octet-stream";
+          const scaled = await maybeDownscale(bytes, mimeType);
+          bytes = scaled.bytes;
+          mimeType = scaled.mimeType;
+
           const sha256 = createHash("sha256").update(bytes).digest("hex");
           const assetId = `ast_${createHash("sha256").update(`${projectId}:${sha256}`).digest("hex").slice(0, 20)}`;
           const key = objectKeyForAsset(projectId, file.name);
-          const mimeType = sniffMime(file) || "application/octet-stream";
           const { widthPx, heightPx } = await imageMeta(bytes, mimeType);
           const assetType = mimeType.startsWith("image/") ? "image" : "document";
 
@@ -134,23 +170,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
             };
           }
 
-          await storage!.put({
-            key,
-            body: bytes,
-            contentType: mimeType,
-          });
-          const legacy = await storeAssetFile(projectId, file);
-
+          await storage!.put({ key, body: bytes, contentType: mimeType });
           getDb()
             .sqlite.prepare(
               `INSERT INTO assets (
             id, project_id, original_filename, mime_type, size_bytes, width_px, height_px,
             sha256, storage_key, thumbnail_key, processing_status, asset_type, user_id, created_at, updated_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            updated_at = excluded.updated_at,
-            thumbnail_key = COALESCE(excluded.thumbnail_key, assets.thumbnail_key),
-            processing_status = excluded.processing_status`,
+          ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at`,
             )
             .run(
               assetId,
@@ -158,51 +185,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
               file.name,
               mimeType,
               bytes.byteLength,
-              legacy?.widthPx ?? widthPx,
-              legacy?.heightPx ?? heightPx,
+              widthPx,
+              heightPx,
               sha256,
               key,
-              legacy?.thumbnailPath ?? null,
+              null,
               assetType,
               user.id,
               stamp,
               stamp,
             );
-
-          let job = null;
-          if (queue) {
-            job = await queue.enqueue({
-              fileId: assetId,
-              batchId: projectId,
-              sourceUrl: legacy?.storagePath ?? key,
-              mimeType,
-              metadata: { filename: file.name, objectKey: key },
-            });
-            if (job) {
-              getDb()
-                .sqlite.prepare(
-                  `INSERT INTO processing_jobs (
-                id, job_id, batch_id, file_id, idempotency_key, status, progress,
-                attempts_made, max_attempts, source_url, created_at, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              ON CONFLICT(job_id) DO UPDATE SET status = excluded.status, progress = excluded.progress, updated_at = excluded.updated_at`,
-                )
-                .run(
-                  `pj_${job.jobId}`,
-                  job.jobId,
-                  projectId,
-                  assetId,
-                  job.idempotencyKey,
-                  job.status,
-                  job.progress,
-                  job.attemptsMade,
-                  job.maxAttempts,
-                  legacy?.storagePath ?? key,
-                  stamp,
-                  stamp,
-                );
-            }
-          }
 
           return {
             filename: file.name,
@@ -212,9 +204,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
               projectId,
               sha256,
               storageKey: key,
-              thumbnailPath: legacy?.thumbnailPath ?? null,
-              processingStatus: job?.status ?? "QUEUED",
-              jobId: job?.jobId,
+              processingStatus: "QUEUED",
               mimeType,
               sizeBytes: bytes.byteLength,
               assetType,

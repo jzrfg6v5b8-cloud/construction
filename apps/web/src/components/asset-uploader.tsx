@@ -32,19 +32,48 @@ export function AssetUploader({
     if (!files?.length) return;
     setUploading(true);
     const body = new FormData();
-    Array.from(files).forEach((file) => body.append("files", file));
+    const prepared: File[] = [];
+    for (const file of Array.from(files)) {
+      // Vercel request body ~4.5MB — compress big images in the browser first.
+      if (file.type.startsWith("image/") && file.size > 3.5 * 1024 * 1024) {
+        try {
+          const bitmap = await createImageBitmap(file);
+          const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+          const width = Math.max(1, Math.round(bitmap.width * scale));
+          const height = Math.max(1, Math.round(bitmap.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("CANVAS_UNSUPPORTED");
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          bitmap.close();
+          const blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve, "image/jpeg", 0.82),
+          );
+          if (!blob) throw new Error("COMPRESS_FAILED");
+          prepared.push(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
+        } catch {
+          prepared.push(file);
+        }
+      } else {
+        prepared.push(file);
+      }
+    }
+    prepared.forEach((file) => body.append("files", file));
     try {
       const response = await fetch(`/api/projects/${projectId}/assets`, { method: "POST", body });
       const payload = (await response.json().catch(() => ({}))) as {
         results?: UploadResult[];
         error?: string;
+        hint?: string;
       };
       if (!response.ok && !payload.results?.length) {
         setResults(
-          Array.from(files).map((file) => ({
+          prepared.map((file) => ({
             filename: file.name,
             ok: false,
-            error: payload.error ?? `HTTP_${response.status}`,
+            error: payload.hint ? `${payload.error}: ${payload.hint}` : (payload.error ?? `HTTP_${response.status}`),
           })),
         );
         return;
@@ -53,7 +82,7 @@ export function AssetUploader({
       if (payload.results?.some((item) => item.ok)) onUploaded?.();
     } catch (error) {
       setResults(
-        Array.from(files).map((file) => ({
+        prepared.map((file) => ({
           filename: file.name,
           ok: false,
           error: error instanceof Error ? error.message : "NETWORK_ERROR",
