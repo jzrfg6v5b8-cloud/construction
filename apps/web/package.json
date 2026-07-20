@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "prebuild": "npm run build --prefix ../../packages/space-schema && npm run build --prefix ../../packages/processing-queue",
     "build": "next build --webpack",
+    "postbuild": "node -e \"const fs=require('fs');const p=require('path').join('.next','lock');fs.mkdirSync('.next',{recursive:true});if(!fs.existsSync(p))fs.writeFileSync(p,'');\"",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

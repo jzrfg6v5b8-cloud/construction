@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && npm install",
+  "buildCommand": "cd ../.. && npm run build -w @sharkflows/space-schema && npm run build -w @sharkflows/processing-queue && npm run build -w @sharkflows/web"
+}
