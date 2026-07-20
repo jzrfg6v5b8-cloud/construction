@@ -90,6 +90,11 @@ function upsertGoogleUserBestEffort(profile: {
     plan: "free",
   };
 
+  // Skip SQLite on Vercel — signed cookie is the source of truth for auth.
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return fallback;
+  }
+
   try {
     const db = getDb().sqlite;
     const linked = db

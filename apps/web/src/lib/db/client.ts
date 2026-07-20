@@ -16,13 +16,20 @@ const globalState = globalThis as typeof globalThis & {
   __sharkflowsDb?: DbHandle;
 };
 
+export function isServerlessReadonlyFs() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
 export function resolveDatabasePath(configured = process.env.DATABASE_PATH): string {
-  // Vercel serverless FS is read-only except /tmp; prefer /tmp unless explicitly configured.
-  const fallback =
-    process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
-      ? "/tmp/sharkflows.sqlite"
-      : ".data/sharkflows.sqlite";
-  const relative = configured ?? fallback;
+  // Vercel/Lambda FS is read-only except /tmp. Relative DATABASE_PATH values like
+  // `.data/sharkflows.sqlite` resolve under /var/task and fail with ENOENT on mkdir.
+  if (isServerlessReadonlyFs()) {
+    if (!configured || !path.isAbsolute(configured) || !configured.startsWith("/tmp")) {
+      return "/tmp/sharkflows.sqlite";
+    }
+    return configured;
+  }
+  const relative = configured ?? ".data/sharkflows.sqlite";
   return path.isAbsolute(relative) ? relative : path.resolve(process.cwd(), relative);
 }
 
@@ -249,7 +256,14 @@ export function ensureSchema(sqlite: Database.Database): void {
 }
 
 export function createDb(dbPath = resolveDatabasePath()): DbHandle {
-  mkdirSync(path.dirname(dbPath), { recursive: true });
+  try {
+    mkdirSync(path.dirname(dbPath), { recursive: true });
+  } catch (error) {
+    if (dbPath !== "/tmp/sharkflows.sqlite") {
+      return createDb("/tmp/sharkflows.sqlite");
+    }
+    throw error;
+  }
   const sqlite = new Database(dbPath);
   ensureSchema(sqlite);
   const db = drizzle(sqlite, { schema });

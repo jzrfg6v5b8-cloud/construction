@@ -70,6 +70,7 @@ function decodeSession(token: string): AuthUser | null {
 }
 
 function persistSessionBestEffort(userId: string, token: string, expiresAt: Date) {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) return;
   try {
     const id = `ses_${randomBytes(12).toString("hex")}`;
     sqlite()
@@ -79,7 +80,7 @@ function persistSessionBestEffort(userId: string, token: string, expiresAt: Date
       )
       .run(id, userId, hashToken(token), expiresAt.toISOString(), nowIso());
   } catch {
-    // Vercel/ephemeral FS may reject writes; signed cookie still authenticates.
+    // Ephemeral FS may reject writes; signed cookie still authenticates.
   }
 }
 
