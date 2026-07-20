@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+**/.next-*
+**/.data
+**/test-results
+**/playwright-report
+**/.git
+apps/sketchup
+apps/vision-worker
