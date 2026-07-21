@@ -13,10 +13,12 @@ import {
   createStarterFloorPlan,
   type FloorPlanDocument,
 } from "@/lib/floorplan/document";
+import { analyzeFloorplanFromAsset } from "@/lib/floorplan/analyze-floorplan-from-asset";
 import { ingestScenePng, PROPOSAL_SCENE_IDS } from "@/lib/rendering/ingest-scene-png";
 import { accessErrorResponse, requireOwnedProject, requireUser } from "@/lib/auth/project-access";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 async function ensureProject(projectId: string, userId: string) {
   if (useCloudDb()) {
@@ -53,7 +55,7 @@ async function scenePng(label: string) {
 }
 
 /**
- * One-shot bootstrap so a new project can run: verified floorplan + optional scene PNGs.
+ * One-shot bootstrap: starter floorplan, analyze uploaded asset, or seed demo scenes.
  */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -66,9 +68,19 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const body = (await request.json().catch(() => ({}))) as {
       verifyFloorplan?: boolean;
       seedRenders?: boolean;
+      assetId?: string;
+      dataBase64?: string;
+      filename?: string;
+      generateRenders?: boolean;
+      analyze?: boolean;
     };
+
+    if (body.assetId || body.dataBase64 || body.analyze) {
+      const result = await analyzeFloorplanFromAsset(id, body);
+      return Response.json(result);
+    }
+
     const verifyFloorplan = body.verifyFloorplan !== false;
-    // Cloud storage supports durable render seeding.
     const seedRenders = body.seedRenders !== false;
 
     let document: FloorPlanDocument;
@@ -129,6 +141,18 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       },
     });
   } catch (error) {
-    return accessErrorResponse(error) ?? Response.json({ error: "BOOTSTRAP_FAILED" }, { status: 500 });
+    return (
+      accessErrorResponse(error) ??
+      Response.json(
+        {
+          error: error instanceof Error ? error.message : "BOOTSTRAP_FAILED",
+          hint:
+            error instanceof Error && error.message.includes("ASSET")
+              ? "请先上传户型图，再点一键生成"
+              : undefined,
+        },
+        { status: 500 },
+      )
+    );
   }
 }

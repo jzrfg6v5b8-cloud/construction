@@ -26,10 +26,10 @@ export function FloorPlanImportPanel({ projectId, lastAssetId, onDone }: FloorPl
     setError(null);
     setMessage(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/analyze-floorplan`, {
+      const response = await fetch(`/api/projects/${projectId}/bootstrap`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ assetId, generateRenders: true }),
+        body: JSON.stringify({ assetId, generateRenders: true, analyze: true }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
