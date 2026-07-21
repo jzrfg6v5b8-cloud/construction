@@ -16,6 +16,26 @@ type Connection = {
 };
 
 const DEFAULT_URL = "http://127.0.0.1:43821";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+function isLocalWebApp() {
+  if (typeof window === "undefined") return true;
+  return LOCAL_HOSTS.has(window.location.hostname);
+}
+
+function explainBridgeError(error: unknown, bridgeUrl: string) {
+  const message = error instanceof Error ? error.message : "连接失败";
+  if (!isLocalWebApp()) {
+    return "线上网站无法连接本机桥接。请在本机运行 npm run dev，用 http://localhost:3000 打开此页再检测。";
+  }
+  if (/load failed|failed to fetch|networkerror/i.test(message)) {
+    return `无法访问 ${bridgeUrl}。请确认终端里 npm run dev:bridge 正在运行，且 Token 完整粘贴（无空格换行）。`;
+  }
+  if (/403|ORIGIN/i.test(message)) {
+    return "来源未授权：请用 http://localhost:3000 或 http://127.0.0.1:3000 打开网页，不要用其他端口或线上域名。";
+  }
+  return message;
+}
 
 export function SketchUpConnection() {
   const [bridgeUrl, setBridgeUrl] = useState(DEFAULT_URL);
@@ -34,28 +54,45 @@ export function SketchUpConnection() {
   async function check() {
     setChecking(true);
     try {
+      const trimmedToken = token.trim();
+      if (!trimmedToken) throw new Error("请先粘贴桥接 Token");
       const response = await fetch(`${bridgeUrl}/v1/status`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${trimmedToken}` },
       });
       if (!response.ok) throw new Error(`Bridge returned HTTP ${response.status}`);
       const status = await response.json() as Omit<Connection, "connected">;
       localStorage.setItem("sharkflows.bridgeUrl", bridgeUrl);
-      localStorage.setItem("sharkflows.bridgeToken", token);
+      localStorage.setItem("sharkflows.bridgeToken", trimmedToken);
+      setToken(trimmedToken);
       setConnection({ connected: true, ...status });
     } catch (error) {
-      setConnection({ connected: false, error: error instanceof Error ? error.message : "连接失败" });
+      setConnection({ connected: false, error: explainBridgeError(error, bridgeUrl) });
     } finally {
       setChecking(false);
     }
   }
 
+  const onLocalWeb = isLocalWebApp();
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      {!onLocalWeb && (
+        <section className="xl:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950">
+          <strong>当前是线上站点，不能连本机桥接。</strong>
+          桥接只监听 127.0.0.1，浏览器从 Vercel 域名无法访问你电脑上的服务。请在本机项目目录执行{" "}
+          <code className="rounded bg-amber-100 px-1">npm run dev</code>，用{" "}
+          <code className="rounded bg-amber-100 px-1">http://localhost:3000/settings/sketchup</code>{" "}
+          打开此页，并保持 <code className="rounded bg-amber-100 px-1">npm run dev:bridge</code> 运行。
+        </section>
+      )}
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-5 flex items-start justify-between">
           <div>
             <h2 className="font-semibold">本地桥接</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500">连接只允许回环地址；Token 由本地桥接启动时随机生成，仅保存在当前浏览器。</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              连接只允许回环地址；Token 由本地桥接启动时随机生成，仅保存在当前浏览器。允许的网页来源：
+              localhost:3000 / 127.0.0.1:3000。
+            </p>
           </div>
           <StatusPill tone={connection.connected ? "green" : "slate"}>
             {connection.connected ? "已连接" : "未连接"}
