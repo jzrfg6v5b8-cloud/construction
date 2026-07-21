@@ -37,7 +37,7 @@ export default function SceneBuilderPage() {
         </>
       }
     >
-      {floorPlan && <section className="mb-6"><div className="mb-2 flex items-center justify-between"><h2 className="font-bold">实时3D空间</h2><span className="text-xs text-slate-500">几何版本 {floorPlan.geometryVersion}</span></div><SpaceSceneCanvas document={floorPlan} products={products}/></section>}
+      {floorPlan && <section className="mb-6"><div className="mb-2 flex items-center justify-between"><h2 className="font-bold">实时3D空间</h2><span className="text-xs text-slate-500">几何版本 {floorPlan.geometryVersion}</span></div><SpaceSceneCanvas document={floorPlan} products={products} projectId={projectId} geometryVersion={floorPlan.geometryVersion}/></section>}
       <SceneRendersPanel projectId={projectId} />
     </AppShell>
   );

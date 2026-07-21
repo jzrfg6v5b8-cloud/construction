@@ -86,18 +86,10 @@ export default function ProjectsPage() {
       } catch {
         /* ignore */
       }
-      // Seed verified plan (scene PNGs skipped on Vercel — no durable disk).
-      const boot = await fetch(`/api/projects/${projectId}/bootstrap`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ verifyFloorplan: true, seedRenders: false }),
-      });
-      if (!boot.ok) {
-        // Project exists; still enter workspace even if bootstrap soft-fails.
-        console.warn("bootstrap failed", await boot.text().catch(() => ""));
-      }
       setName("");
       setAddress("");
+      setHint("项目已创建。请上传户型图并一键生成。");
+      await loadProjects();
       router.push(`/projects/${projectId}/calibration`);
     } catch {
       setError("网络错误");
@@ -110,24 +102,8 @@ export default function ProjectsPage() {
     setBootstrapping(projectId);
     setError(null);
     setHint(null);
-    try {
-      const response = await fetch(`/api/projects/${projectId}/bootstrap`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ verifyFloorplan: true, seedRenders: true }),
-      });
-      if (!response.ok) {
-        setError("一键跑通失败");
-        return;
-      }
-      setHint("已写入 VERIFIED 户型 + 8 张演示场景图。可直接导出 PDF。");
-      await loadProjects();
-      router.push(`/projects/${projectId}/proposal`);
-    } catch {
-      setError("网络错误");
-    } finally {
-      setBootstrapping(null);
-    }
+    router.push(`/projects/${projectId}/calibration`);
+    setBootstrapping(null);
   }
 
   async function remove(projectId: string) {
@@ -146,11 +122,11 @@ export default function ProjectsPage() {
       projectId={activeId}
       projectName="全部项目"
       title="项目工作区"
-      description="创建后会自动写入起步户型，无需 SketchUp 也能先改墙、再导出。真渲染再换 PNG。"
+      description="创建项目 → 上传户型图 → 一键生成墙体与概念图 → 场景页调试材质与商品。"
     >
       <section className="rounded-xl border border-teal-200 bg-teal-50/60 p-4 text-xs leading-5 text-teal-950">
         <strong>最短跑通：</strong>
-        填名称点「创建并进入」→ 户型页可改墙 →「方案输出」导出 PDF。没有 SketchUp / OCR 也能走完主路径。
+        创建项目 → 校准页上传平面图 →「一键生成户型+概念图」→ 场景页调材质 → 方案页导出 PDF。
         {hint && <p className="mt-2 font-medium text-teal-800">{hint}</p>}
       </section>
 
@@ -230,7 +206,7 @@ export default function ProjectsPage() {
                     ) : (
                       <Play size={14} />
                     )}
-                    一键跑通
+                    去校准生成
                   </button>
                   <Link href={`/projects/${project.id}/calibration`} className={buttonSecondary}>
                     校准

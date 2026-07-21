@@ -6,8 +6,9 @@ import { resolveCjkFontPath } from "@/lib/proposal/cjk-font";
 import { FinalApprovalService } from "@/lib/proposal/approval-service";
 import { createQuoteSignatureProvider } from "@/lib/proposal/quote-signature-provider";
 import { getDb } from "@/lib/db/client";
-import { getFloorPlan, getSketchUpResult, listRenderArtifacts } from "@/lib/db/repositories";
-import { PROPOSAL_SCENE_IDS, syncRenderRowToMemory } from "@/lib/rendering/ingest-scene-png";
+import { cloudListRenders, useCloudDb } from "@/lib/db/cloud-store";
+import { getFloorPlan, getFloorPlanAsync, getSketchUpResult, listRenderArtifacts } from "@/lib/db/repositories";
+import { PROPOSAL_SCENE_IDS, readScenePng, syncRenderRowToMemory } from "@/lib/rendering/ingest-scene-png";
 import { renderStore } from "@/lib/rendering/render-store";
 import type { SceneScreenshotManifest } from "@/lib/rendering";
 import { getLatestQuote, listBom } from "@/lib/commerce/repository";
@@ -67,13 +68,38 @@ async function placeholderPng(label: string) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-function hydrateRenders(projectId: string) {
+async function hydrateRenders(projectId: string) {
+  if (useCloudDb()) {
+    const rows = await cloudListRenders(projectId);
+    const seen = new Set<string>();
+    const artifacts = [];
+    for (const row of rows) {
+      if (seen.has(row.scene_id)) continue;
+      seen.add(row.scene_id);
+      artifacts.push(
+        syncRenderRowToMemory({
+          render_id: row.id,
+          project_id: row.project_id,
+          scene_id: row.scene_id,
+          scene_version: row.scene_version,
+          renderer: row.renderer,
+          status: row.status,
+          width: row.width,
+          height: row.height,
+          image_uri: row.storage_key,
+          created_at: row.created_at,
+          completed_at: row.updated_at,
+        }),
+      );
+    }
+    return artifacts.filter((item) => item.status === "ready" && item.imageUri);
+  }
   const rows = listRenderArtifacts(projectId);
   rows.forEach(syncRenderRowToMemory);
   return renderStore.list(projectId).filter((item) => item.status === "ready" && item.imageUri);
 }
 
-function approvalInput(projectId: string) {
+async function approvalInput(projectId: string) {
   const approvals = listApprovals(projectId).map((row) => ({
     id: row.id,
     role: row.role,
@@ -81,12 +107,12 @@ function approvalInput(projectId: string) {
     actorId: row.actor_id,
     at: row.created_at,
   }));
-  const floor = getFloorPlan(projectId);
+  const floor = (await getFloorPlanAsync(projectId)) ?? getFloorPlan(projectId);
   const sketch = getSketchUpResult(projectId);
   const dimensionsVerified = Boolean(floor?.dimensions_verified);
   const sceneVersion = floor?.geometry_version ?? sketch?.geometryVersion ?? "unversioned";
 
-  const renderArtifacts = hydrateRenders(projectId);
+  const renderArtifacts = await hydrateRenders(projectId);
   const allScenesReady = REQUIRED_SCENES.every((sceneId) =>
     renderArtifacts.some((item) => item.sceneId === sceneId),
   );
@@ -145,9 +171,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const url = new URL(request.url);
   const requestedFinal = url.searchParams.get("status") === "FINAL";
   try {
-  getDb();
+  if (!useCloudDb()) getDb();
   await requireOwnedProject(id);
-  const approval = new FinalApprovalService().checkFinal(approvalInput(id));
+  const approval = new FinalApprovalService().checkFinal(await approvalInput(id));
   if (requestedFinal && !approval.approved) {
     return Response.json(
       {
@@ -161,7 +187,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   }
 
   const status = requestedFinal && approval.approved ? "FINAL" : "DRAFT";
-  const hydrated = hydrateRenders(id);
+  const hydrated = await hydrateRenders(id);
   const scenes = [];
   for (const sceneId of REQUIRED_SCENES) {
     const artifact = hydrated.find((item) => item.sceneId === sceneId && item.imageUri);
@@ -169,7 +195,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     let caption = "非照片级渲染占位；请在方案页上传 SketchUp 场景 PNG。";
     if (artifact?.imageUri) {
       try {
-        image = await readFile(artifact.imageUri);
+        image = useCloudDb()
+          ? ((await readScenePng(id, sceneId)) ?? (await placeholderPng(sceneId)))
+          : await readFile(artifact.imageUri);
         caption = `Scene ${sceneId} · ${artifact.renderer} · ${artifact.sceneVersion}`;
       } catch {
         image = await placeholderPng(sceneId);
@@ -180,8 +208,28 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     scenes.push({ title: sceneId, image: new Uint8Array(image), caption });
   }
 
-  const bom = listBom(id).map((row)=>({sku:String(row.sku),name:String(row.name),quantity:Number(row.quantity),unitPrice:Number(row.unit_price),materialCode:row.material_code?String(row.material_code):undefined}));
-  if (bom.length === 0) return Response.json({error:"BOM_EMPTY"},{status:409});
+  const bomRows = listBom(id);
+  const bom =
+    bomRows.length > 0
+      ? bomRows.map((row) => ({
+          sku: String(row.sku),
+          name: String(row.name),
+          quantity: Number(row.quantity),
+          unitPrice: Number(row.unit_price),
+          materialCode: row.material_code ? String(row.material_code) : undefined,
+        }))
+      : [
+          {
+            sku: "DRAFT-PLACEHOLDER",
+            name: "方案草案（请在采购页导入 BOM）",
+            quantity: 1,
+            unitPrice: 0,
+            materialCode: undefined,
+          },
+        ];
+  if (bomRows.length === 0 && requestedFinal) {
+    return Response.json({ error: "BOM_EMPTY" }, { status: 409 });
+  }
   const subtotal = bom.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
   const storedQuote=getLatestQuote(id);
   const tax=Number(storedQuote?.tax??0),designFee=Number(storedQuote?.design_fee??0),discount=Number(storedQuote?.discount??0);
@@ -200,13 +248,14 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     );
   }
 
+  const floorRow = (await getFloorPlanAsync(id)) ?? getFloorPlan(id);
   const pdfService = new CJKPdfService({ fontPath });
   const approvalRows = listApprovals(id);
   let bytes = await pdfService.generate({
     projectId: id,
     title: `Sharkflows 方案 ${id}`,
     status,
-    sceneVersion: getFloorPlan(id)?.geometry_version ?? "unversioned",
+    sceneVersion: floorRow?.geometry_version ?? "unversioned",
     scenes,
     bom,
     quote,
@@ -239,7 +288,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       projectId: id,
       title: `Sharkflows 方案 ${id}`,
       status,
-      sceneVersion: getFloorPlan(id)?.geometry_version ?? "unversioned",
+      sceneVersion: floorRow?.geometry_version ?? "unversioned",
       scenes,
       bom,
       quote,

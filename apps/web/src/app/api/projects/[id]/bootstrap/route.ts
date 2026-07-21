@@ -68,8 +68,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       seedRenders?: boolean;
     };
     const verifyFloorplan = body.verifyFloorplan !== false;
-    // PNG files can't persist on Vercel FS; skip seeding there.
-    const seedRenders = !useCloudDb() && body.seedRenders !== false;
+    // Cloud storage supports durable render seeding.
+    const seedRenders = body.seedRenders !== false;
 
     let document: FloorPlanDocument;
     const existing = await getFloorPlanAsync(id);

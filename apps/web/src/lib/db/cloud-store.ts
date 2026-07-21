@@ -279,3 +279,52 @@ export async function cloudUpsertAsset(row: CloudAssetRow) {
   });
   return row;
 }
+
+export async function cloudDownloadObject(key: string): Promise<Buffer> {
+  const token = serviceRoleKey();
+  const response = await fetch(`${storageBase()}/object/project-assets/${key}`, {
+    headers: { apikey: token, Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`STORAGE_DOWNLOAD_${response.status}`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
+export type CloudRenderRow = {
+  id: string;
+  project_id: string;
+  scene_id: string;
+  scene_version: string;
+  renderer: string;
+  status: string;
+  width: number;
+  height: number;
+  storage_key: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function cloudUpsertRender(row: CloudRenderRow) {
+  await rest("sf_renders?on_conflict=id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(row),
+  });
+  return row;
+}
+
+export async function cloudListRenders(projectId: string): Promise<CloudRenderRow[]> {
+  const rows = await rest<CloudRenderRow[]>(
+    `sf_renders?project_id=eq.${encodeURIComponent(projectId)}&order=created_at.desc&select=*`,
+  );
+  return rows ?? [];
+}
+
+export async function cloudGetRender(projectId: string, sceneId: string): Promise<CloudRenderRow | undefined> {
+  const rows = await rest<CloudRenderRow[]>(
+    `sf_renders?project_id=eq.${encodeURIComponent(projectId)}&scene_id=eq.${encodeURIComponent(sceneId)}&order=created_at.desc&select=*&limit=1`,
+  );
+  return rows?.[0];
+}

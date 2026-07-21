@@ -49,10 +49,12 @@ export function ProjectAssetsPanel({
   projectId,
   accept,
   emptyHint = "还没有素材。上传户型图、现场照片、商品图或采购表开始。",
+  onAssetsChange,
 }: {
   projectId: string;
   accept?: string;
   emptyHint?: string;
+  onAssetsChange?: (assets: AssetListItem[]) => void;
 }) {
   const [assets, setAssets] = useState<AssetListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,9 @@ export function ProjectAssetsPanel({
       const response = await fetch(`/api/projects/${projectId}/assets`, { cache: "no-store" });
       const payload = (await response.json()) as { assets?: AssetListItem[]; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "LOAD_FAILED");
-      setAssets(payload.assets ?? []);
+      const next = payload.assets ?? [];
+      setAssets(next);
+      onAssetsChange?.(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "LOAD_FAILED");
     } finally {
@@ -80,7 +84,9 @@ export function ProjectAssetsPanel({
         const payload = (await response.json()) as { assets?: AssetListItem[]; error?: string };
         if (cancelled) return;
         if (!response.ok) throw new Error(payload.error ?? "LOAD_FAILED");
-        setAssets(payload.assets ?? []);
+        const next = payload.assets ?? [];
+        setAssets(next);
+        onAssetsChange?.(next);
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "LOAD_FAILED");
