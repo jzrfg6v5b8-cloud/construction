@@ -35,14 +35,28 @@ npm run dev
 | `GOOGLE_CLIENT_*` | Google 登录可选 |
 | `OBJECT_STORAGE_*` / `S3_*` | 对象存储；默认本地 `.data/objects` |
 
-## SketchUp / LayOut 本机
+## SketchUp / LayOut 本机（支持线上站）
 
-1. `npm run dev:bridge`，把 Token 填到 `/settings/sketchup`
-2. 安装 `apps/sketchup-extension` 到 SketchUp Plugins（见 `docs/sketchup-integration/`）
-3. LayOut：打开公司 `.layout` 模板 → 刷新 SKP → 导出 PDF（网页清单只做勾选记录）
+线上站 **不能** 让浏览器直连 `127.0.0.1`。正确做法是 **云队列**：
+
+1. Vercel 已配置 `SKETCHUP_RESULT_WEBHOOK_SECRET`（或 `SKETCHUP_BRIDGE_SECRET`）
+2. 本机启动桥接并绑定项目：
+
+```bash
+SKETCHUP_CLOUD_URL=https://construction-web-murex.vercel.app \
+SKETCHUP_BRIDGE_SECRET=<与 Vercel webhook secret 相同> \
+SKETCHUP_PROJECT_ID=prj_你的项目ID \
+npm run dev:bridge
+```
+
+3. 在线上站打开项目 → SketchUp 页 → **发送到SketchUp**
+4. 本机桥接自动 claim → SketchUp 插件建模 → PNG 回传到云端
+
+本地开发仍可用 `http://localhost:3000` 直连桥接（可选）。
 
 ## 诚实边界
 
 - **照片级** = SketchUp/外部渲染器出的 PNG，不是网页 3D 截图。
 - **LayOut** = 半自动交接 + 三步人工，不是一键全自动 PDF。
 - **户型编辑器** = 可交付的墙体 MVP，不是 AutoCAD。
+- **线上站 SketchUp** = 云队列 + 本机桥接轮询；浏览器不直连本机。

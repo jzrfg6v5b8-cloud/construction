@@ -10,18 +10,29 @@ function projectIdFrom(pathname: string): string | null {
 }
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isApi = pathname.startsWith("/api/");
+
+  // Local SketchUp bridge poller authenticates with webhook/bridge secret, not session cookie.
+  const isBridgeResults =
+    request.method === "POST" &&
+    /^\/api\/projects\/[^/]+\/sketchup\/results\/?$/.test(pathname) &&
+    Boolean(request.headers.get("authorization")?.match(/^Bearer\s+\S+/i));
+  if (isBridgeResults) {
+    return NextResponse.next();
+  }
+
   const user = getUserBySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
-  const isApi = request.nextUrl.pathname.startsWith("/api/");
   if (!user) {
     if (isApi) return NextResponse.json({ error: "AUTH_REQUIRED" }, { status: 401 });
     const login = new URL("/auth", request.url);
-    login.searchParams.set("next", request.nextUrl.pathname);
+    login.searchParams.set("next", pathname);
     return NextResponse.redirect(login);
   }
 
   // /projects list and /api/projects collection — no project ownership check
-  const projectId = projectIdFrom(request.nextUrl.pathname);
-  if (!projectId || request.nextUrl.pathname === "/projects" || request.nextUrl.pathname === "/api/projects") {
+  const projectId = projectIdFrom(pathname);
+  if (!projectId || pathname === "/projects" || pathname === "/api/projects") {
     return NextResponse.next();
   }
 

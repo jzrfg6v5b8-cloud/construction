@@ -344,3 +344,133 @@ export async function cloudGetRender(projectId: string, sceneId: string): Promis
   );
   return rows?.[0];
 }
+
+export type CloudSketchUpTaskRow = {
+  id: string;
+  project_id: string;
+  idempotency_key: string;
+  status: string;
+  progress: number;
+  configuration: unknown;
+  error: unknown | null;
+  versions: unknown;
+  components: unknown;
+  results: unknown;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  deadline_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function cloudCreateSketchUpTask(row: CloudSketchUpTaskRow) {
+  const rows = await rest<CloudSketchUpTaskRow[]>("sf_sketchup_tasks?on_conflict=project_id,idempotency_key", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(row),
+  });
+  return rows?.[0] ?? row;
+}
+
+export async function cloudGetSketchUpTask(projectId: string, taskId: string) {
+  const rows = await rest<CloudSketchUpTaskRow[]>(
+    `sf_sketchup_tasks?project_id=eq.${encodeURIComponent(projectId)}&id=eq.${encodeURIComponent(taskId)}&select=*&limit=1`,
+  );
+  return rows?.[0];
+}
+
+export async function cloudGetSketchUpTaskByIdempotency(projectId: string, idempotencyKey: string) {
+  const rows = await rest<CloudSketchUpTaskRow[]>(
+    `sf_sketchup_tasks?project_id=eq.${encodeURIComponent(projectId)}&idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&select=*&limit=1`,
+  );
+  return rows?.[0];
+}
+
+export async function cloudListSketchUpTasks(projectId: string, limit = 20) {
+  const rows = await rest<CloudSketchUpTaskRow[]>(
+    `sf_sketchup_tasks?project_id=eq.${encodeURIComponent(projectId)}&order=created_at.desc&select=*&limit=${limit}`,
+  );
+  return rows ?? [];
+}
+
+export async function cloudClaimSketchUpTask(projectId: string, claimedBy: string) {
+  const queued = await rest<CloudSketchUpTaskRow[]>(
+    `sf_sketchup_tasks?project_id=eq.${encodeURIComponent(projectId)}&status=eq.QUEUED&order=created_at.asc&select=*&limit=1`,
+  );
+  const task = queued?.[0];
+  if (!task) return null;
+  const stamp = new Date().toISOString();
+  const updated = await rest<CloudSketchUpTaskRow[]>(
+    `sf_sketchup_tasks?id=eq.${encodeURIComponent(task.id)}&status=eq.QUEUED`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        status: "DOWNLOADED",
+        progress: Math.max(Number(task.progress) || 0, 5),
+        claimed_by: claimedBy,
+        claimed_at: stamp,
+        updated_at: stamp,
+      }),
+    },
+  );
+  return updated?.[0] ?? null;
+}
+
+export async function cloudUpdateSketchUpTask(
+  projectId: string,
+  taskId: string,
+  patch: Partial<
+    Pick<
+      CloudSketchUpTaskRow,
+      "status" | "progress" | "error" | "versions" | "components" | "results" | "claimed_by" | "claimed_at"
+    >
+  >,
+) {
+  const rows = await rest<CloudSketchUpTaskRow[]>(
+    `sf_sketchup_tasks?project_id=eq.${encodeURIComponent(projectId)}&id=eq.${encodeURIComponent(taskId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }),
+    },
+  );
+  return rows?.[0];
+}
+
+export async function cloudSaveSketchUpResultDoc(input: {
+  projectId: string;
+  geometryVersion: string;
+  modelVersion: string;
+  status: string;
+  componentStats: unknown[];
+  exports: unknown[];
+}) {
+  const stamp = new Date().toISOString();
+  await rest("sf_docs?on_conflict=id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({
+      id: `sketchup_result_${input.projectId}`,
+      project_id: input.projectId,
+      kind: "sketchup_result",
+      payload: {
+        projectId: input.projectId,
+        geometryVersion: input.geometryVersion,
+        modelVersion: input.modelVersion,
+        status: input.status,
+        componentStats: input.componentStats,
+        exports: input.exports,
+        receivedAt: stamp,
+      },
+      updated_at: stamp,
+    }),
+  });
+}
+
+export async function cloudGetSketchUpResultDoc(projectId: string) {
+  const rows = await rest<Array<{ payload: Record<string, unknown> }>>(
+    `sf_docs?project_id=eq.${encodeURIComponent(projectId)}&kind=eq.sketchup_result&select=payload&limit=1`,
+  );
+  return rows?.[0]?.payload;
+}

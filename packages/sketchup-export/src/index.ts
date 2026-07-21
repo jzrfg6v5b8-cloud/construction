@@ -4,6 +4,7 @@ export {
   type BridgeOptions,
   type RunningBridge,
 } from "./bridge.js";
+export { CloudTaskPoller, type CloudPollerOptions } from "./cloud-poller.js";
 export {
   InMemoryTaskStore,
   StoreError,
