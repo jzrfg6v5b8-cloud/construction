@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
 import {
   cloudDownloadObject,
   cloudUploadObject,
@@ -11,6 +10,11 @@ import {
 import { upsertRenderArtifactByScene } from "@/lib/db/repositories";
 import { renderStore } from "@/lib/rendering/render-store";
 import type { RenderArtifact } from "@/lib/rendering/types";
+
+async function loadSharp() {
+  const mod = await import("sharp");
+  return mod.default;
+}
 
 export const PROPOSAL_SCENE_IDS = [
   "plan",
@@ -97,6 +101,7 @@ export async function ingestScenePng(input: {
   const sceneId = normalizeSceneId(input.sceneId);
   const sceneVersion = input.sceneVersion ?? `sv-${Date.now().toString(36)}`;
   const renderer = input.renderer ?? "upload";
+  const sharp = await loadSharp();
   const png = await sharp(input.bytes).png().toBuffer();
   const meta = await sharp(png).metadata();
   const width = meta.width ?? 1280;

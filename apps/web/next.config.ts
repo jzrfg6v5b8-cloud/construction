@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   allowedDevOrigins: ["127.0.0.1"],
   transpilePackages: ["@sharkflows/space-schema", "@sharkflows/processing-queue"],
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["better-sqlite3", "sharp"],
 };
 
 export default nextConfig;

@@ -73,8 +73,18 @@ export function SketchUpConnection() {
     try {
       if (!cloudProjectId) throw new Error("请填写要轮询的项目 ID（prj_…）");
       const response = await fetch(`/api/projects/${encodeURIComponent(cloudProjectId)}/sketchup/results?list=1`);
-      if (!response.ok) throw new Error(`云队列不可用 HTTP ${response.status}`);
-      const payload = (await response.json()) as { tasks?: Array<{ status: string }> };
+      const payload = (await response.json().catch(() => ({}))) as {
+        tasks?: Array<{ status: string }>;
+        error?: string;
+        detail?: string;
+      };
+      if (!response.ok) {
+        throw new Error(
+          payload.detail
+            ? `云队列不可用：${payload.detail}`
+            : `云队列不可用 HTTP ${response.status}`,
+        );
+      }
       const pending = (payload.tasks ?? []).filter(
         (t) => t.status !== "COMPLETED" && t.status !== "FAILED",
       ).length;

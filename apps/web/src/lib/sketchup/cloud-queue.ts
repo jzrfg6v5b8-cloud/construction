@@ -12,8 +12,9 @@ import {
   useCloudDb,
   type CloudSketchUpTaskRow,
 } from "@/lib/db/cloud-store";
-import { ingestScenePng, normalizeSceneId } from "@/lib/rendering/ingest-scene-png";
 import { saveSketchUpResult, getSketchUpResult } from "@/lib/db/repositories";
+
+// Avoid top-level sharp: only load ingest when attaching PNG results.
 
 export type SketchUpTaskPublic = {
   id: string;
@@ -159,6 +160,7 @@ export async function attachSketchUpResultFile(input: {
     Boolean(input.sceneId);
   let ingestedScene: string | null = null;
   if (isPng) {
+    const { ingestScenePng, normalizeSceneId } = await import("@/lib/rendering/ingest-scene-png");
     const sceneRaw = input.sceneId ?? input.filename.replace(/\.png$/i, "");
     const ingested = await ingestScenePng({
       projectId: input.projectId,

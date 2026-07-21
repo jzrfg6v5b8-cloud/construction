@@ -8,7 +8,6 @@ import {
   touchProjectAsync,
 } from "@/lib/db/repositories";
 import { sketchUpResultStore, type SketchUpModelResult } from "@/lib/sketchup/result-store";
-import { ingestScenePng, normalizeSceneId } from "@/lib/rendering/ingest-scene-png";
 import { accessErrorResponse, requireOwnedProject } from "@/lib/auth/project-access";
 import {
   attachSketchUpResultFile,
@@ -19,6 +18,7 @@ import {
   patchSketchUpTask,
   persistSketchUpCompletion,
 } from "@/lib/sketchup/cloud-queue";
+import { normalizeSceneId } from "@/lib/rendering/ingest-scene-png";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -69,6 +69,7 @@ async function ingestExports(projectId: string, geometryVersion: string, exports
       String(item.kind ?? "").toUpperCase().includes("SCENE");
     if (!looksPng && !item.sceneId && !item.sceneCode) continue;
     const sceneRaw = item.sceneId ?? item.sceneCode ?? item.filename?.replace(/\.png$/i, "") ?? "living";
+    const { ingestScenePng } = await import("@/lib/rendering/ingest-scene-png");
     const result = await ingestScenePng({
       projectId,
       sceneId: normalizeSceneId(sceneRaw),
@@ -109,7 +110,16 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const result = sketchUpResultStore.get(projectId) ?? sketchUpResultStore.get(id);
     return result ? Response.json(result) : Response.json({ error: "NO_MODEL_RESULT" }, { status: 404 });
   } catch (error) {
-    return accessErrorResponse(error) ?? Response.json({ error: "INTERNAL_ERROR" }, { status: 500 });
+    return (
+      accessErrorResponse(error) ??
+      Response.json(
+        {
+          error: "INTERNAL_ERROR",
+          detail: error instanceof Error ? error.message : "unknown",
+        },
+        { status: 500 },
+      )
+    );
   }
 }
 
