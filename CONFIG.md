@@ -45,14 +45,11 @@ npm run dev
 ```bash
 SKETCHUP_CLOUD_URL=https://construction-web-murex.vercel.app \
 SKETCHUP_BRIDGE_SECRET=<与 Vercel webhook secret 相同> \
-SKETCHUP_PROJECT_ID=prj_你的项目ID \
+SKETCHUP_PROJECT_IDS=prj_项目A,prj_项目B \
 npm run dev:bridge
 ```
 
-3. 在线上站打开项目 → SketchUp 页 → **发送到SketchUp**
-4. 本机桥接自动 claim → SketchUp 插件建模 → PNG 回传到云端
-
-本地开发仍可用 `http://localhost:3000` 直连桥接（可选）。
+多个项目用逗号分隔写在 `SKETCHUP_PROJECT_IDS`；也可只写单个 `SKETCHUP_PROJECT_ID`。设置页可勾选项目并一键复制命令。
 
 ## 诚实边界
 
