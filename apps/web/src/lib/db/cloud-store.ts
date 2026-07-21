@@ -12,7 +12,15 @@ type FloorPlanRow = {
 };
 
 function cleanEnv(value: string | undefined) {
-  return (value ?? "").trim().replace(/^["']|["']$/g, "");
+  const cleaned = (value ?? "").trim().replace(/^["']|["']$/g, "");
+  if (cleaned === "[SENSITIVE]") {
+    throw new Error("ENV_PLACEHOLDER_NOT_CONFIGURED");
+  }
+  return cleaned;
+}
+
+function storageObjectPath(key: string) {
+  return key.split("/").map((segment) => encodeURIComponent(segment)).join("/");
 }
 
 function supabaseConfigured() {
@@ -246,18 +254,26 @@ export async function cloudUploadObject(input: {
   contentType: string;
   upsert?: boolean;
 }) {
-  const key = serviceRoleKey();
-  const response = await fetch(`${storageBase()}/object/project-assets/${input.key}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": input.contentType,
-      "x-upsert": input.upsert ? "true" : "false",
-    },
-    body: new Uint8Array(input.body),
-    cache: "no-store",
-  });
+  const token = serviceRoleKey();
+  const objectPath = storageObjectPath(input.key);
+  const uploadUrl = `${storageBase()}/object/project-assets/${objectPath}`;
+  let response: Response;
+  try {
+    response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        apikey: token,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": input.contentType,
+        "x-upsert": input.upsert ? "true" : "false",
+      },
+      body: new Uint8Array(input.body),
+      cache: "no-store",
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "fetch_failed";
+    throw new Error(`STORAGE_UPLOAD_URL_INVALID:${reason}`);
+  }
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(`STORAGE_${response.status}:${text.slice(0, 200)}`);
@@ -282,7 +298,7 @@ export async function cloudUpsertAsset(row: CloudAssetRow) {
 
 export async function cloudDownloadObject(key: string): Promise<Buffer> {
   const token = serviceRoleKey();
-  const response = await fetch(`${storageBase()}/object/project-assets/${key}`, {
+  const response = await fetch(`${storageBase()}/object/project-assets/${storageObjectPath(key)}`, {
     headers: { apikey: token, Authorization: `Bearer ${token}` },
     cache: "no-store",
   });

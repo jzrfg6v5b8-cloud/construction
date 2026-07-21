@@ -30,6 +30,10 @@ export function AssetUploader({
 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
+    if (!projectId?.startsWith("prj_")) {
+      setResults([{ filename: "—", ok: false, error: "无效的项目 ID" }]);
+      return;
+    }
     setUploading(true);
     const body = new FormData();
     const prepared: File[] = [];
@@ -62,12 +66,14 @@ export function AssetUploader({
     }
     prepared.forEach((file) => body.append("files", file));
     try {
-      const response = await fetch(`/api/projects/${projectId}/assets`, { method: "POST", body });
-      const payload = (await response.json().catch(() => ({}))) as {
-        results?: UploadResult[];
-        error?: string;
-        hint?: string;
-      };
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/assets`, { method: "POST", body });
+      const raw = await response.text();
+      let payload: { results?: UploadResult[]; error?: string; hint?: string } = {};
+      try {
+        payload = JSON.parse(raw || "{}") as typeof payload;
+      } catch {
+        payload = { error: raw.slice(0, 160) || `HTTP_${response.status}` };
+      }
       if (!response.ok && !payload.results?.length) {
         setResults(
           prepared.map((file) => ({

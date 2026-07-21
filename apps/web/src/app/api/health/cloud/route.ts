@@ -18,6 +18,7 @@ export async function GET() {
 
   let restReachable: string = "skipped";
   let storageReachable: string = "skipped";
+  let storageUploadProbe: string = "skipped";
 
   if (urlOk && serviceKeyOk) {
     const base = url.replace(/\/$/, "");
@@ -48,10 +49,40 @@ export async function GET() {
     } catch (error) {
       storageReachable = `throw:${error instanceof Error ? error.message : "unknown"}`;
     }
+
+    try {
+      const probeKey = `health/probe-${Date.now()}.png`;
+      const probeBytes = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "base64",
+      );
+      const encodedKey = probeKey.split("/").map(encodeURIComponent).join("/");
+      const response = await fetch(`${base}/storage/v1/object/project-assets/${encodedKey}`, {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "image/png",
+          "x-upsert": "true",
+        },
+        body: probeBytes,
+        cache: "no-store",
+      });
+      const text = await response.text();
+      storageUploadProbe = `${response.status}:${text.slice(0, 80)}`;
+    } catch (error) {
+      storageUploadProbe = `throw:${error instanceof Error ? error.message : "unknown"}`;
+    }
   }
+
+  const placeholderEnv =
+    url === "[SENSITIVE]" ||
+    serviceKey === "[SENSITIVE]" ||
+    anonKey === "[SENSITIVE]";
 
   return NextResponse.json({
     vercel: Boolean(process.env.VERCEL),
+    placeholderEnv,
     urlOk,
     urlHost: urlOk ? new URL(url).host : url.slice(0, 24) || null,
     serviceKeyOk,
@@ -59,5 +90,6 @@ export async function GET() {
     anonKeyOk,
     restReachable,
     storageReachable,
+    storageUploadProbe,
   });
 }

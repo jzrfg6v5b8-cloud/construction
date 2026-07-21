@@ -220,7 +220,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }),
     );
 
-    await touchProjectAsync(projectId);
+    try {
+      await touchProjectAsync(projectId);
+    } catch (touchError) {
+      console.warn("touchProjectAsync failed after asset upload", touchError);
+    }
 
     return NextResponse.json(
       {
@@ -232,9 +236,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       { status: 207 },
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : "UPLOAD_FAILED";
+    const hint =
+      message.includes("ENV_PLACEHOLDER") || message.includes("INVALID_SUPABASE")
+        ? "Vercel 环境变量未正确配置，请检查 NEXT_PUBLIC_SUPABASE_URL 与 SUPABASE_SERVICE_ROLE_KEY"
+        : message.includes("STORAGE_")
+          ? "云存储上传失败，请稍后重试或联系管理员检查 Supabase Storage"
+          : undefined;
     return (
       accessErrorResponse(error) ??
-      NextResponse.json({ error: error instanceof Error ? error.message : "UPLOAD_FAILED" }, { status: 500 })
+      NextResponse.json({ error: message, hint }, { status: 500 })
     );
   }
 }

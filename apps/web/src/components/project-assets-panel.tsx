@@ -61,12 +61,20 @@ export function ProjectAssetsPanel({
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!projectId?.startsWith("prj_")) {
+      setError("无效的项目，请从「项目工作区」重新进入");
+      setLoading(false);
+      return;
+    }
     if (!opts?.silent) setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/assets`, { cache: "no-store" });
-      const payload = (await response.json()) as { assets?: AssetListItem[]; error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "LOAD_FAILED");
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/assets`, { cache: "no-store" });
+      const raw = await response.text();
+      const payload = (JSON.parse(raw || "{}") || {}) as { assets?: AssetListItem[]; error?: string; hint?: string };
+      if (!response.ok) {
+        throw new Error(payload.hint ? `${payload.error}: ${payload.hint}` : (payload.error ?? `HTTP_${response.status}`));
+      }
       const next = payload.assets ?? [];
       setAssets(next);
       onAssetsChange?.(next);
@@ -79,11 +87,14 @@ export function ProjectAssetsPanel({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/projects/${projectId}/assets`, { cache: "no-store" })
+    fetch(`/api/projects/${encodeURIComponent(projectId)}/assets`, { cache: "no-store" })
       .then(async (response) => {
-        const payload = (await response.json()) as { assets?: AssetListItem[]; error?: string };
+        const raw = await response.text();
+        const payload = (JSON.parse(raw || "{}") || {}) as { assets?: AssetListItem[]; error?: string; hint?: string };
         if (cancelled) return;
-        if (!response.ok) throw new Error(payload.error ?? "LOAD_FAILED");
+        if (!response.ok) {
+          throw new Error(payload.hint ? `${payload.error}: ${payload.hint}` : (payload.error ?? "LOAD_FAILED"));
+        }
         const next = payload.assets ?? [];
         setAssets(next);
         onAssetsChange?.(next);
